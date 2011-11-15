@@ -56,7 +56,7 @@ class Radio
         @speed = 31
         @pulse = 0
         if filters[:dec6]
-          @dec6_coef = NArray.to_na filters[:dec6]*2
+          @dec6_coef = NArray.to_na filters[:dec6].reverse*2
           @dec6_data = NArray.float filters[:dec6].size
           @dec6_pos = 0
           @dec6_pulse = 6
@@ -64,7 +64,7 @@ class Radio
           raise 'no 48000 Hz filter found'
         end
         if filters[:dec16]
-          @dec16_coef = NArray.to_na filters[:dec16]*2
+          @dec16_coef = NArray.to_na filters[:dec16].reverse*2
           @dec16_sin = NArray.float filters[:dec16].size
           @dec16_cos = NArray.float filters[:dec16].size
           @dec16_pos = 0
@@ -72,7 +72,7 @@ class Radio
           @dec16_coef = nil
         end
         if filters[:dec8]
-          @dec8_coef = NArray.to_na filters[:dec8]*2
+          @dec8_coef = NArray.to_na filters[:dec8].reverse*2
           @dec8_sin = NArray.float filters[:dec8].size
           @dec8_cos = NArray.float filters[:dec8].size
           @dec8_pos = 0
@@ -80,7 +80,7 @@ class Radio
           @dec8_coef = nil
         end
         if filters[:dec4]
-          @dec4_coef = NArray.to_na filters[:dec4]*2
+          @dec4_coef = NArray.to_na filters[:dec4].reverse*2
           @dec4a_sin = NArray.float filters[:dec4].size
           @dec4a_cos = NArray.float filters[:dec4].size
           @dec4a_pos = 0
@@ -90,7 +90,7 @@ class Radio
         else
           @dec4_coef = nil
         end
-        @bit_coef = NArray.to_na filters[:bit]*2
+        @bit_coef = NArray.to_na filters[:bit].reverse*2
         @bit_sin = NArray.float filters[:bit].size
         @bit_cos = NArray.float filters[:bit].size
         @bit_pos = 0
