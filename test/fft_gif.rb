@@ -66,8 +66,8 @@ end
 
 # fake fft data
 data = []
-for row in 0...50
-  for col in 0...960
+for row in 0...40
+  for col in 0...720
     (data[row]||=[])[col] = rand * Math.sin(col.to_f/120+10)
   end
 end

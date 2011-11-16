@@ -1,4 +1,5 @@
 %w{
+  radio/narray.rb
   radio/psk31/*.rb
 }.each do |glob|
   Dir.glob(File.expand_path(glob, File.dirname(__FILE__))).each do |filename|

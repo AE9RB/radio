@@ -32,7 +32,8 @@ def load_wav filename
 end
 
 fmt, data = load_wav 'wav/bpsk8k.wav'
-radio = Radio::PSK31::Rx.new fmt[:hz], 'C', 1000
+data.force_encoding('binary') 
+radio = Radio::PSK31::Rx.new 'C', 1000
 
 # "CQ CQ CQ de EA2BAJ EA2BAJ EA2BAJ\rPSE K\r"
 p fmt

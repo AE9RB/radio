@@ -4,16 +4,15 @@ class Radio
     
     class Rx
 
-      def initialize sample_rate, format, frequency
-        @filter = Filters.new sample_rate, format, frequency, 
-          :dec6 => FIR_DEC6,
-          :dec16 => FIR_DEC16,
-          :dec4 => FIR_DEC4,
-          :bit => FIR_BIT
+      def initialize format, frequency, ppm_adjust=0
+        @filter = Filters.new format, frequency, FIR_DEC, FIR_BIT
         @bit_detect = BitDetect.new
         @decoder = Decoder.new
+        adjust_clock ppm_adjust
       end
       
+      # Ensure slice is fast when possible
+      # sample_data.force_encoding('binary') 
       def call sample_data
         decoded = ''
         @filter.call sample_data do |i, q|
@@ -27,23 +26,27 @@ class Radio
       end
       
       def frequency= frequency
-        if frequency != @filter.frequency
+        unless frequency == @filter.frequency
           @filter.frequency = frequency
-          @filter.recalc_phase_inc
+          recalc_phase_inc
           reset
         end
       end
       
       # To compensate for bad clock in A-D conversion
-      def adjust_sample_clock ppm
-        @filter.clock = 8000.0 * ppm / 1000000 + 8000
-        @filter.recalc_phase_inc
+      def adjust_clock ppm
+        @clock = 8000.0 * ppm / 1000000 + 8000
+        recalc_phase_inc
       end
       
       def reset
         @filter.reset
         @bit_detect.reset
         @decoder.reset
+      end
+      
+      def recalc_phase_inc
+        @filter.phase_inc = PI2 * @filter.frequency / @clock
       end
       
     end
