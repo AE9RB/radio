@@ -1,0 +1,15 @@
+<%
+require expand_path 'waterfall'
+
+# fake fft data
+data = []
+for row in 0...40
+  for col in 0...720
+    (data[row]||=[])[col] = rand * Math.sin(col.to_f/120+10)
+  end
+end
+
+@response.body = [WaterfallImage.gif(data)]
+@response.headers['Content-Type'] = 'image/gif'
+
+%>

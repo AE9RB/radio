@@ -7,9 +7,13 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/dturnbull/radio'
   s.summary     = 'Amateur radio software'
 
-  dirs = %w(lib)
+  s.add_dependency 'rack'
+  s.add_dependency 'thin'
+  s.add_dependency 'eventmachine'
+
+  dirs = %w(bin lib)
   s.require_path = 'lib'
   s.files        = Dir.glob("{#{dirs.join ','}}/**/*")
   s.files       += %w(README.md)
-  s.files       += Dir.glob('scripts/*')
+  s.executables  = ['radio-server']
 end

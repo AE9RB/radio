@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+local_filename = File.expand_path '../lib/radio', File.dirname(__FILE__)
+if File.exist? local_filename + '.rb'
+  require local_filename
+else
+  require 'radio'
+end
+Radio::Server.start

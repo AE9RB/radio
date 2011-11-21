@@ -90,7 +90,7 @@ class Radio
           sample = sample_data.slice(pos,@sample_size).unpack(@format)[0] || 0
           sample = (sample + @offset).to_f / @max
           @phase += @phase_inc
-          @phase -= PI2 if @phase > PI2
+          @phase -= PI2 if @phase >= PI2
           if @dec16_coef and @speed == 31
             @dec16_pos = @dec16_sin.size if @dec16_pos == 0
             @dec16_pos -= 1

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src='jquery-1.7.js'></script>
+  </head>
+  <body>
+    <img id="waterfall" src="waterfall.gif" alt=""></img>
+    <script type="text/javascript" charset="utf-8">
+      waterfallSeq = 0;
+      function reloadWaterfall() {
+        $("#waterfall").attr("src", "waterfall.gif?" + waterfallSeq);
+        waterfallSeq += 1;
+        setTimeout( reloadWaterfall, 500);
+      }
+      $(document).ready(function() {
+        reloadWaterfall();
+      });
+    </script>
+  </body>
+</html>
