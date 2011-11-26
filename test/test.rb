@@ -31,10 +31,46 @@ def load_wav filename
   [fmt, data]
 end
 
+# Generate a float enumerator for binary string audio data.
+# Packing is defined with Array#pack/String#unpack formats.
+# Usage: floats = $iterators['C'].enum_for(:call, data)
+# 'C' should be almost as fast as String#each_byte.
+# If slow, you probably need to: data.force_encoding('binary')
+$iterators = Hash.new do |hash, packing|
+  packing = packing.to_s.dup
+  sample_size = [0].pack(packing).size
+  case ("\x80"*16).unpack(packing)[0]
+  when 128
+    max = 128
+    offset = -128
+  when -128
+    max = 128
+    offset = 0
+  when 32768 + 128
+    max = 32768
+    offset = -32768
+  when -32768 + 128
+    max = 32768
+    offset = 0
+  else
+    raise 'unable to interpret packing format'
+  end
+  hash[packing] = Proc.new do |data, &block|
+    pos = 0
+    size = data.size
+    while pos < size
+      sample = data.slice(pos,sample_size).unpack(packing)[0] || 0
+      block.call (sample + offset).to_f / max
+      pos += sample_size
+    end
+  end
+end
+
+
 fmt, data = load_wav 'wav/bpsk8k.wav'
 data.force_encoding('binary') 
-radio = Radio::PSK31::Rx.new 'C', 1000
+radio = Radio::PSK31::Rx.new 1000
 
 # "CQ CQ CQ de EA2BAJ EA2BAJ EA2BAJ\rPSE K\r"
-p fmt
-p radio.call data
+i =  $iterators['C'].enum_for(:call, data)
+p radio.call i

@@ -11,37 +11,9 @@ class Radio
       attr_accessor :phase_inc
       attr_accessor :speed # 31 | 63 | 125
       
-      # Format of the input data stream is specified in the same
-      # format as String#unpack.  Here are some examples:
-      #   'C' 8-bit unsigned mono
-      #   'xxv' Little-endian 16-bit right channel
-      # Not everything is supported outside this native Ruby implementation.
-      # The following are guaranteed to be in a C or Java implementation.
-      #   x - ignores a byte (in an unused channel)
-      #   C/c - Unsigned/signed bytes
-      #   n/v - Unsigned 16-bit words in big/little endian format
-      
       # dec16 is for testing a single decimation filter vs the standard dual
 
-      def initialize format, frequency, dec_coef, bit_coef, dec16_coef=nil
-        @format = format
-        @sample_size = [0].pack(format).size
-        case ("\x80"*16).unpack(format)[0]
-        when 128
-          @max = 128
-          @offset = -128
-        when -128
-          @max = 128
-          @offset = 0
-        when 32768 + 128
-          @max = 32768
-          @offset = -32768
-        when -32768 + 128
-          @max = 32768
-          @offset = 0
-        else
-          raise 'unable to interpret format'
-        end
+      def initialize frequency, dec_coef, bit_coef, dec16_coef=nil
         @frequency = frequency
         @phase = 0.0
         @phase_inc = 0.0
@@ -82,13 +54,8 @@ class Radio
       end
       
       def call sample_data
-        raise 'alignment error' unless sample_data.size % @sample_size == 0
         mod16_8 = @speed == 63 ? 8 : 16
-        pos = 0
-        while pos < sample_data.size
-          pos += @sample_size
-          sample = sample_data.slice(pos,@sample_size).unpack(@format)[0] || 0
-          sample = (sample + @offset).to_f / @max
+        sample_data.each do |sample|
           @phase += @phase_inc
           @phase -= PI2 if @phase >= PI2
           if @dec16_coef and @speed == 31

@@ -8,7 +8,7 @@ class Radio
       CHANGE_DELAY = 5
       
       def initialize
-        @averages = Array.new 21
+        @averages = Array.new 16
         reset
       end
       

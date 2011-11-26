@@ -4,15 +4,14 @@ class Radio
     
     class Rx
 
-      def initialize format, frequency, ppm_adjust=0
-        @filter = Filters.new format, frequency, FIR_DEC, FIR_BIT
+      def initialize frequency, ppm_adjust=0
+        @filter = Filters.new frequency, FIR_DEC, FIR_BIT
         @bit_detect = BitDetect.new
         @decoder = Decoder.new
         adjust_clock ppm_adjust
       end
       
-      # Ensure slice is fast when possible
-      # sample_data.force_encoding('binary') 
+      # samples are enumerable floats
       def call sample_data
         decoded = ''
         @filter.call sample_data do |i, q|

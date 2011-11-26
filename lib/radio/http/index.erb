@@ -11,9 +11,18 @@
 
     <h1>Radio</h1>
     
-    <iframe src="waterfall" width=720 height=50 frameborder=0 marginwidth=0 scrolling="no">
-      <p>Your browser does not support iframes.</p>
-    </iframe>
-
+    <img id="waterfall" src="waterfall.gif" alt=""></img>
+    <script type="text/javascript" charset="utf-8">
+      waterfallSeq = 0;
+      function reloadWaterfall() {
+        $("#waterfall").attr("src", "waterfall?" + waterfallSeq);
+        waterfallSeq += 1;
+        setTimeout( reloadWaterfall, 500);
+      }
+      $(document).ready(function() {
+        reloadWaterfall();
+      });
+    </script>
+    
   </body>
 </html>
