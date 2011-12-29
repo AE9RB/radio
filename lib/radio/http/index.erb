@@ -4,6 +4,7 @@
     <style type="text/css" media="screen">
       body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
       select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
+      img{display:block}
     </style>
     <script src='jquery-1.7.js'></script>
   </head>
@@ -11,16 +12,18 @@
 
     <h1>Radio</h1>
     
-    <img id="waterfall" src="waterfall.gif" alt=""></img>
+    <div id="waterfall">
+    </div>
+    
     <script type="text/javascript" charset="utf-8">
-      waterfallSeq = 0;
-      function reloadWaterfall() {
-        $("#waterfall").attr("src", "waterfall?" + waterfallSeq);
-        waterfallSeq += 1;
-        setTimeout( reloadWaterfall, 500);
+      var waterfallSeqNo = 0;
+      function nextWaterfall() {
+        $('#waterfall').prepend('<img src="waterfall?' + waterfallSeqNo + '" alt="" onload="nextWaterfall()"></img>');
+        waterfallSeqNo++;
+        if (waterfallSeqNo > 50) $('#waterfall img:last-child').remove();
       }
       $(document).ready(function() {
-        reloadWaterfall();
+        nextWaterfall();
       });
     </script>
     

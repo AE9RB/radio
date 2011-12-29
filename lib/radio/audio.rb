@@ -74,16 +74,20 @@ class Audio
   private
   
   # RFC791 suggests 576 bytes as the minimum MTU for any host.
-  # 16 packets/sec in PCM 8x8000 format fits comfortably.
+  # Queue messages are always 512 floats (may be padded with 0.0).
+  # This will be padded with zeros for end-of-file conditions.
+  # PCM 8x8000 for VoIP is 15.625 packets/sec giving a 64ms lag.
   def thread buf
     channels = [] # don't transform a sample more than once
     loop do
-      data = buf.read 500
+      data = buf.read 512
       channels.clear
       @semaphore.synchronize do
         @queues.each do |queue, channel|
           # CoreAudio range of -32767..32767 makes easy conversion to -1.0..1.0
           queue.push channels[channel] ||= data[channel,true].to_f/32767
+          # drop missed data
+          queue.pop if queue.size > 64
         end
       end
     end
@@ -95,7 +99,7 @@ class Audio
       puts 'Use "Applications/Utilities/Audio MIDI Setup" to adjust.'
       exit 1
     end
-    @buf ||= @dev.input_buffer(@dev.input_stream.channels * 4000)
+    @buf ||= @dev.input_buffer(@dev.input_stream.channels * 4096)
     @thread ||= Thread.new @buf, &method(:thread)
     @buf.start
   end

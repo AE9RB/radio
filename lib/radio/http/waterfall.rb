@@ -5,16 +5,12 @@
 class WaterfallImage
   
   COLOR_TABLE = (0..127).collect do |i|
-    g = i * 1.2
-    b = i * 2
-    r = i - 110
-    if r < 0
-      r = (g + b) / 3
-    else
-      r = r * 15
+    r = g = b = Math.log((i+16)**6.35)*18-312
+    redshift = i - 64
+    if redshift > 0
+      b = g -= redshift * 3
     end
-    b = b - (r/2)
-    b = 0 if b < 0
+    b *= 0.95
     [r,g,b]
   end.flatten.pack 'C*'
   
@@ -41,35 +37,30 @@ class WaterfallImage
       0x07 # LZW code size
     ].pack('CvvvvCC')
 
-    min = max = data[0][0]
-    data.each do |row|
-      row.each do |val|
-        min = [min, val].min
-        max = [max, val].max
-      end
-    end
-    range = max - min
-    block_max = 126 # or else LZW exceeds 8 bits
-
     data.each_with_index do |vals, row|
       col = 0
+      min = vals.min
+      range = vals.max - min
       while col < vals.size
-        slice = vals.slice(col,block_max)
-        slice = slice.collect { |x| (x - min) / range * 127 + 1 }
+        # Uncompressed GIF trickery avoids bit packing too
+        # 126 byte chunks with reset keeps LXW in 8 bit codes
+        slice = vals.slice(col,126)
+        # This 126 because palette is 1..127
+        slice = slice.collect { |x| (x - min) / range * 126 + 1 }
         slice = slice.pack 'C*'
-        gif += [
+        newstuff = [
           slice.size+1,
           slice,
           0x80 # LZW reset
         ].pack('Ca*C')
-        col += block_max
+        gif += newstuff
+        col += 126
       end
 
     end
 
     gif += [
-      0x02, # end image blocks
-      0x00, # keeps FF happy
+      0x01, # end image blocks
       0x81, # final image block: LZW end
       0x00, # end image blocks
       0x3B # end gif
