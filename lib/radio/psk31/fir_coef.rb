@@ -1,3 +1,7 @@
+# These are from LGPL licensed programs if they are even copyrightable.
+# They will be removed after I implement remez in Ruby.
+
+
 class Radio
   class PSK31
 

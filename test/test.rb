@@ -22,7 +22,7 @@ def load_wav filename
           :bit_sample => fmt.slice(14,2).unpack('c')[0]
         }
       when 'data'
-        data += file.read @size
+        data += file.read size
       else
         raise type
       end

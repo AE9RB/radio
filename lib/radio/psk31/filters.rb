@@ -1,3 +1,18 @@
+# Copyright 2012 The ham21/radio Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 class Radio
   
   class PSK31
@@ -62,7 +77,7 @@ class Radio
             @dec16_pos = @dec16_sin.size if @dec16_pos == 0
             @dec16_pos -= 1
             @dec16_sin[@dec16_pos] = sample * Math.sin(@phase)
-            @dec16_cos[@dec16_pos] = sample * Math.cos(@phase)
+            @dec16_cos[@dec16_pos] = sample * -Math.cos(@phase)
             next unless ((@pulse = @pulse + 1 & 0xFF) % 16) == 0
             sin_val = @dec16_sin.fir(@dec16_coef, @dec16_pos)
             cos_val = @dec16_cos.fir(@dec16_coef, @dec16_pos)
@@ -90,7 +105,7 @@ class Radio
           @bit_pos -= 1
           @bit_sin[@bit_pos] = sin_val
           @bit_cos[@bit_pos] = cos_val
-          yield @bit_sin.fir(@bit_coef, @bit_pos), @bit_cos.fir(@bit_coef, @bit_pos)
+          yield @bit_cos.fir(@bit_coef, @bit_pos), @bit_sin.fir(@bit_coef, @bit_pos)
         end
       end
       
