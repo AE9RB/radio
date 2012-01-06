@@ -59,7 +59,6 @@ class Audio
     @id = dev.devid
     @name = dev.name
     @queues = {}
-    @sid = -1
     @semaphore = Mutex.new
   end
   
@@ -68,7 +67,6 @@ class Audio
   def subscribe channel=0
     queue = Queue.new
     do_start = false
-    @sid += 1
     @semaphore.synchronize do
       do_start = @queues.empty?
       @queues[queue] = channel

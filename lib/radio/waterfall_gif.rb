@@ -1,8 +1,23 @@
+# Copyright 2012 The ham21/radio Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 # 2D Array of numbers will be mapped to 1..127 colors.
 # This 7-bit data is encoded uncompressed and left for
 # http to compress. Background color reserved for future use.
 
-class WaterfallImage
+class WaterfallGif
   
   COLOR_TABLE = (0..127).collect do |i|
     r = g = b = Math.log((i+16)**6.35)*18-312
@@ -43,7 +58,7 @@ class WaterfallImage
       range = vals.max - min
       while col < vals.size
         # Uncompressed GIF trickery avoids bit packing too
-        # 126 byte chunks with reset keeps LXW in 8 bit codes
+        # 126 byte chunks with reset keeps LZW in 8 bit codes
         slice = vals.slice(col,126)
         # This 126 because palette is 1..127
         slice = slice.collect { |x| (x - min) / range * 126 + 1 }

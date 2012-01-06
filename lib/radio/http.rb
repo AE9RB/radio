@@ -20,6 +20,15 @@ class Radio
 
   class HTTP
     
+    module Deferred
+      
+      # Returns true for pages needing to sleep on a thread.
+      def deferred? env
+        env['PATH_INFO'] =~ %r{/waterfall}
+      end
+
+    end
+    
     MOUNTS = [
       ['', File.expand_path(File.join(File.dirname(__FILE__), 'http'))]
     ]
@@ -47,11 +56,12 @@ class Radio
 
       class RenderStackOverflow < StandardError
       end
-
+      
       def initialize(env, filename)
         super(env)
         @render_stack = []
         @response = original_response = Rack::Response.new
+        @session = Session.prepare self, @response
         rendering = render(filename)
         if @response == original_response and @response.empty?
           @response.write rendering
@@ -67,6 +77,8 @@ class Radio
         @response.header["X-Cascade"] = "pass"
         @response.header["Content-Type"] = "text/plain"
       end
+
+      attr_reader :session
 
       # After rendering, #finish will be sent to the client.
       # If you replace the response or add to the response#body, 

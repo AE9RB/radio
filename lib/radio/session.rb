@@ -13,29 +13,28 @@
 # limitations under the License.
 
 
-require 'eventmachine'
-require 'thin'
-require 'rack'
-
-class Radio
-  class Server
-    
-    def self.start
-      
-      app = Rack::Builder.new do
-        use Rack::CommonLogger
-        use Rack::ShowExceptions
-        use Rack::Lint
-        run Radio::HTTP.new
-      end
-      
-      app.extend HTTP::Deferred
-
-      EventMachine.run {
-        Rack::Handler::Thin.run app, :Port => 8080, :Host => '0.0.0.0'
-      }
-
+class Session
+  
+  CODES = ('a'..'z').to_a + ('A'..'Z').to_a + ('0'..'9').to_a
+  COOKIE_KEY = 'ham21-radio-session'
+  
+  def self.prepare request, response
+    @sessions ||= {}
+    session_id = request.cookies[COOKIE_KEY]
+    session = @sessions[session_id]
+    unless session
+      session_id = (0...24).collect{CODES.sample}.join
+      session = @sessions[session_id] = new
+      Rack::Utils.set_cookie_header!(response.headers, COOKIE_KEY, session_id)
     end
-    
+    session
   end
+  
+  attr_reader :rig
+
+  def initialize
+    @rig = @@rig ||= Rig.new
+  end
+  
 end
+

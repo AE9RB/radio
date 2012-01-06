@@ -1,20 +1,6 @@
 <%
-require 'fftw3'
-require expand_path 'waterfall'
-# load expand_path 'waterfall.rb'
 
-$aud_dev ||= Audio.inputs[0]
-$queue ||= $aud_dev.subscribe
-$queue.clear if query_string == '0'
-pcm_data = $queue.pop.to_a + $queue.pop.to_a + $queue.pop.to_a + $queue.pop.to_a
-fftval = FFTW3.fft(pcm_data, 0)
-waterfall_data = []
-# 716 == 0-2800Hz SSB
-(0...716).each do |i|
-  v = fftval[i]
-  waterfall_data[i] = Math.hypot(v.real, v.imag)
-end
-@response.body = [WaterfallImage.gif([waterfall_data])]
+@response.body = [session.rig.waterfall_row]
 @response.headers['Content-Type'] = 'image/gif'
 
 %>
