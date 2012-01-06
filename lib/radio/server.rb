@@ -32,7 +32,7 @@ class Radio
       app.extend HTTP::Deferred
 
       EventMachine.run {
-        Rack::Handler::Thin.run app, :Port => 8080, :Host => '0.0.0.0'
+        Rack::Handler::Thin.run app, :Port => 7373, :Host => '0.0.0.0'
       }
 
     end

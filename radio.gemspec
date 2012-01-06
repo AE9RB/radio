@@ -4,8 +4,8 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ['David Turnbull']
   s.email       = ['dturnbull@gmail.com']
-  s.homepage    = 'https://github.com/dturnbull/radio'
-  s.summary     = 'Amateur radio software'
+  s.homepage    = 'https://github.com/ham21/radio'
+  s.summary     = 'The Twenty-First Century Amateur Radio Project'
 
   s.add_dependency 'rack'
   s.add_dependency 'thin'
