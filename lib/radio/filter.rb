@@ -30,12 +30,11 @@ class Radio
 
     # The first call with data is when we decide which module is optimal.
     def call data, &block
+      mod_name = 'Each'
       if Enumerable === data
         first = data.first
-        mod_name = 'Enum'
       elsif NArray === data
         first = data[0]
-        mod_name = 'NArray'
       else
         first = data
         mod_name = ''

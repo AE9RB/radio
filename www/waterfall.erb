@@ -2,5 +2,6 @@
 
 @response.body = [session.rig.waterfall_row]
 @response.headers['Content-Type'] = 'image/gif'
+@response.headers["Cache-Control"] = 'max-age=0, private, must-revalidate'
 
 %>

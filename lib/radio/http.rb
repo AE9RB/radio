@@ -30,7 +30,7 @@ class Radio
     end
     
     MOUNTS = [
-      ['', File.expand_path(File.join(File.dirname(__FILE__), 'http'))]
+      ['', File.expand_path(File.join(File.dirname(__FILE__), '../../www'))]
     ]
 
     ENGINES = {
@@ -232,7 +232,7 @@ class Radio
     # @return (Array)[status, headers, body]
     def call(env)
       path_info = Rack::Utils.unescape(env['PATH_INFO'])
-      return not_found if path_info.include? '..' # unsafe
+      return not_found if path_info =~ /\.(\.|erb$)/ # unsafe '..' and '.erb'
       MOUNTS.each do |path, dir|
         if path_info =~ %r{^#{Regexp.escape(path)}(/.*|)$}
           filename = File.join(dir, $1)

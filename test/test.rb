@@ -73,5 +73,4 @@ radio = Radio::PSK31::Rx.new 1000
 
 # "CQ CQ CQ de EA2BAJ EA2BAJ EA2BAJ\rPSE K\r"
 i =  $iterators['C'].enum_for(:call, data)
-i = NArray.to_na i.to_a
-p radio.call i
+radio.call(i){|o| p o}

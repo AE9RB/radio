@@ -31,13 +31,13 @@ class Radio
       end
     end
 
-    module FloatNArrayMixDecimateFir
+    module FloatEachMixDecimateFir
       include FirSetup
       def call data
         data.each do |energy|
           @fir_pos = @fir_size if @fir_pos == 0
           @fir_pos -= 1
-          @fir_buf[@fir_pos] = Complex(Math.sin(@mix_phase)*energy, -Math.cos(@mix_phase)*energy)
+          @fir_buf[@fir_pos] = Complex(Math.cos(@mix_phase)*energy, -Math.sin(@mix_phase)*energy)
           @mix_phase += @mix_phase_inc
           @mix_phase -= PI2 if @mix_phase >= PI2
           @dec_pos -= 1

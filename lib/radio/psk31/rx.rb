@@ -38,7 +38,7 @@ class Radio
             end
           end
         end
-        decoded
+        yield decoded
       end
       
     end

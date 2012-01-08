@@ -1,3 +1,6 @@
 .DS_Store
 *.rbx
-radio-*.gem
+*.gem
+.bundle
+Gemfile.lock
+pkg/*
