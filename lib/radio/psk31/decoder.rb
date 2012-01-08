@@ -34,11 +34,11 @@ class Radio
         @prev_bit = false
       end
       
-      def call new_i, new_q
+      def call iq
         @prev_i = @this_i
         @prev_q = @this_q
-        @this_i = new_i
-        @this_q = new_q
+        @this_i = iq.real
+        @this_q = iq.imag
         vect_y = @prev_i*@this_i + @prev_q*@this_q
         if @mode == :bpsk
           bit = vect_y >= 0.0 ? 1 : 0

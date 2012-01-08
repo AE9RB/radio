@@ -24,6 +24,7 @@ class Rig
     @thread = Thread.new &method(:thread)
     @waterfall = Queue.new
     @waterfall_pending = 0
+    #TODO @adjusted_rx_clock = @rx_clock.to_f * ppm / 1000000 + rx_clock
   end
   
   def stop

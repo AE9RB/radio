@@ -35,10 +35,10 @@ class Radio
         @change_at = 0
       end
       
-      def call sample_x, sample_y
-        yield if @phase == @peak
+      def call iq
+        yield iq if @phase == @peak
         @peak = @next_peak if @phase == @change_at
-        energy = sample_x**2 + sample_y**2
+        energy = iq.real**2 + iq.imag**2
         @averages[@phase] = (1.0-1.0/AVG_SAMPLES)*@averages[@phase] + (1.0/AVG_SAMPLES)*energy
         @phase += 1
         if @phase > 15
