@@ -5,4 +5,4 @@ if File.exist? local_filename + '.rb'
 else
   require 'radio'
 end
-Radio::Server.start
+Radio.start

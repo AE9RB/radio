@@ -13,10 +13,14 @@
 # limitations under the License.
 
 
+require 'fftw3'
+require 'thin'
+
 %w{
   radio/*.rb
   radio/psk31/*.rb
   radio/filters/*.rb
+  radio/http/*.rb
 }.each do |glob|
   Dir.glob(File.expand_path(glob, File.dirname(__FILE__))).each do |filename|
     require filename
@@ -28,4 +32,23 @@ class Radio
   PI = Math::PI.freeze
   PI2 = (8.0 * Math.atan(1.0)).freeze
   
+  def self.start
+    
+    app = Rack::Builder.new do
+      use Rack::CommonLogger
+      use Rack::ShowExceptions
+      use Rack::Lint
+      run Radio::HTTP::Server.new
+      # Thin threading model obtained from Radio::HTTP::Server
+      def deferred? env
+        @ins.last.deferred? env
+      end
+    end
+    
+    EventMachine.run {
+      Rack::Handler::Thin.run app, :Port => 7373, :Host => '0.0.0.0'
+    }
+
+  end
+
 end
