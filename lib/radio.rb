@@ -21,6 +21,7 @@ require 'thin'
   radio/psk31/*.rb
   radio/filters/*.rb
   radio/http/*.rb
+  radio/inputs/*.rb
 }.each do |glob|
   Dir.glob(File.expand_path(glob, File.dirname(__FILE__))).each do |filename|
     require filename

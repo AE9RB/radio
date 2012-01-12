@@ -50,7 +50,7 @@ class Radio
       mod_name += 'Decimate' if @options[:decimate]
       mod_name += 'Fir' if @options[:fir]
       this_call = method :call
-      eval "extend #{mod_name}"
+      extend eval mod_name
       if this_call == method(:call)
         raise "#{mod_name} must override #call(data)"
       end
