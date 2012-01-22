@@ -13,21 +13,34 @@
 # limitations under the License.
 
 
-require 'coreaudio'
+begin
+  require 'coreaudio'
+rescue LoadError => e
+end
+
 
 class Radio
   module Inputs
-    
+
     class CoreAudio
       
+      def self.status
+        return 'Loaded' if defined? ::CoreAudio
+        unless defined? @is_darwin
+          @is_darwin = (`uname`.strip == 'Darwin') rescue false
+        end
+        return "Unsupported: requires Apple Macintosh" unless @is_darwin
+        return 'Unavailable: gem install coreaudio'
+      end
+  
       # I don't see a way to automatically set the CoreAudio CODEC rate.
-      # We'll present the nominal_rate as the only option.  This will trigger
-      # the sample rate messages for the user if it's set to CD audio.
+      # We'll present the nominal_rate as the only option.
       def self.sources
+        return {} unless defined? ::CoreAudio
         result = {}
         warnings = []
         ::CoreAudio.devices.each do |dev|
-          clannels = dev.input_stream.channels
+          channels = dev.input_stream.channels
           if channels > 0
             result[dev.devid] = {
               name: dev.name,
@@ -38,19 +51,17 @@ class Radio
         end
         result
       end
-
-      # Is the Rig doesn't see any suitable CODEC rate, it will ask here
-      # for a sentence or two to append the user message.
-      def self.help_for_rate_adjust
-        'Use "Applications/Utilities/Audio MIDI Setup" to adjust.'
-      end
       
+      # Check this because the requested rate isn't always available.
+      attr_reader :rate
+
       # id is the key from the sources hash.
       # rate is the desired hardware rate.  do not decimate/interpolate here.
       # samples are the quantity to be processed on each call.
-      def initialize id, rate, samples, channel_i, channel_q=nil
-        @device = CoreAudio::AudioDevice.new id
+      def initialize id, rate, channel_i, channel_q=nil
+        @device = ::CoreAudio::AudioDevice.new id
         raise 'sample rate mismatch' unless rate == @device.nominal_rate
+        @rate = rate
         raise 'I channel fail' unless channel_i < @device.input_stream.channels
         @channel_i = channel_i
         channels = 1
@@ -60,34 +71,38 @@ class Radio
           extend IQ
           channels = 2
         end
-        @samples = samples
-        coreaudio_input_buffer_size = channels * samples * 3
-        @buf = @dev.input_buffer coreaudio_input_buffer_size
+        # Half second of buffer
+        coreaudio_input_buffer_size = channels * rate / 2
+        @buf = @device.input_buffer coreaudio_input_buffer_size
         @buf.start
       end
 
       # This is called on its own thread in Rig and is expected to block.
-      # until it can return a full array of floats (-1..1).
-      def call
+      def call samples
         # CoreAudio range of -32767..32767 makes easy conversion to -1.0..1.0
-        @buf.read(@samples)[@channel_i,true].to_f/32767
+        @buf.read(samples)[@channel_i,true].to_f/32767
       end
-      
+  
       # Once killed, no starting again on this object.
       def kill
         @buf.kill
       end
 
       module IQ
-        def call
+        def call samples
           #TODO optimized yield array of complex
+          raise 'todo'
+          @buf.read(samples*2)[@channel_i,true].to_c/32767
         end
       end
-      
+  
     end
 
-    #TODO thinking about this...
-    # Inputs.register CoreAudio
-    
   end
+end
+
+
+if $0 == __FILE__
+  p Radio::Inputs::CoreAudio.status
+  p Radio::Inputs::CoreAudio.sources
 end
