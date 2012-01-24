@@ -13,55 +13,55 @@
 # limitations under the License.
 
 
-require 'fftw3'
+class Radio
 
-class Rig
+  class Rig
+    
+    include FFT
+    include Rx
   
-  def initialize
-    @device = Audio.inputs[0]
-    @queue = @device.subscribe
-    @semaphore = Mutex.new
-    @thread = Thread.new &method(:thread)
-    @waterfall = Queue.new
-    @waterfall_pending = 0
-    #TODO @adjusted_rx_clock = @rx_clock.to_f * ppm / 1000000 + rx_clock
-  end
-  
-  def stop
-    @device.unsubscribe @queue
-    @thread.kill.join
-  end
+    def initialize
+      @semaphore = Mutex.new
+      
+      @device = Audio.inputs[0]
+      @queue = @device.subscribe
+      @semaphore = Mutex.new
+      @thread = Thread.new &method(:thread)
+      @waterfall = Queue.new
+      @waterfall_pending = 0
+    end
 
-  def waterfall_row
-    @semaphore.synchronize { @waterfall_pending += 1 }
-    @waterfall.pop
-  end
-  
-  def thread
-    fft_count = 0
-    fft_data = []
-    loop do
-      data = @queue.pop
-      fft_count += 1
-      fft_data += data.to_a
-      if fft_count == 4
-        fftval = FFTW3.fft(fft_data, 0)
-        # 716 == 0-2800Hz SSB
-        waterfall_data = Array.new
-        fftval[0...716].each do |v|
-          waterfall_data << Math.hypot(v.real, v.imag)
+    def waterfall_row
+      @semaphore.synchronize { @waterfall_pending += 1 }
+      @waterfall.pop
+    end
+    
+    def thread
+      fft_count = 0
+      fft_data = []
+      loop do
+        data = @queue.pop
+        fft_count += 1
+        fft_data += data.to_a
+        if fft_count == 4
+          fftval = FFTW3.fft(fft_data, 0)
+          # 716 == 0-2800Hz SSB
+          waterfall_data = Array.new
+          fftval[0...716].each do |v|
+            waterfall_data << Math.hypot(v.real, v.imag)
+          end
+          gif = WaterfallGif.gif([waterfall_data])
+          waterfall_pending = nil
+          @semaphore.synchronize do
+            waterfall_pending = @waterfall_pending
+            @waterfall_pending = 0
+          end
+          waterfall_pending.times { @waterfall.push gif }
+          fft_count = 0
+          fft_data = []
         end
-        gif = WaterfallGif.gif([waterfall_data])
-        waterfall_pending = nil
-        @semaphore.synchronize do
-          waterfall_pending = @waterfall_pending
-          @waterfall_pending = 0
-        end
-        waterfall_pending.times { @waterfall.push gif }
-        fft_count = 0
-        fft_data = []
       end
     end
-  end
   
+  end
 end

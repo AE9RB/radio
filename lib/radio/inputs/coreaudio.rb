@@ -25,7 +25,7 @@ class Radio
     class CoreAudio
       
       def self.status
-        return 'Loaded' if defined? ::CoreAudio
+        return "Loaded: #{::CoreAudio.devices.size} devices" if defined? ::CoreAudio
         unless defined? @is_darwin
           @is_darwin = (`uname`.strip == 'Darwin') rescue false
         end
@@ -83,8 +83,8 @@ class Radio
         @buf.read(samples)[@channel_i,true].to_f/32767
       end
   
-      # Once killed, no starting again on this object.
-      def kill
+      # Once stopped, rig won't attempt starting again on this object.
+      def stop
         @buf.kill
       end
 

@@ -17,6 +17,7 @@ require 'fftw3'
 require 'thin'
 
 %w{
+  radio/rig/*.rb
   radio/*.rb
   radio/psk31/*.rb
   radio/filters/*.rb
