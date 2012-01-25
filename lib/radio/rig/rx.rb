@@ -23,7 +23,7 @@ class Radio
         @rx = @rx_thread = nil
         super
       end
-
+      
       def rx= input
         old_rx_thread = new_thread = false
         @semaphore.synchronize do
@@ -57,3 +57,5 @@ class Radio
   
   end
 end
+
+

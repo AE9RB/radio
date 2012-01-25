@@ -58,7 +58,7 @@ class Radio
       # id is the key from the sources hash.
       # rate is the desired hardware rate.  do not decimate/interpolate here.
       # samples are the quantity to be processed on each call.
-      def initialize id, rate, channel_i, channel_q=nil
+      def initialize id, rate, channel_i, channel_q
         @device = ::CoreAudio::AudioDevice.new id
         raise 'sample rate mismatch' unless rate == @device.nominal_rate
         @rate = rate

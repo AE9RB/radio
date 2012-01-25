@@ -22,6 +22,7 @@ class Radio
   
     def initialize
       @semaphore = Mutex.new
+      super
       
       @device = Audio.inputs[0]
       @queue = @device.subscribe
