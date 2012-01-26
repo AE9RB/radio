@@ -23,46 +23,23 @@ class Radio
     def initialize
       @semaphore = Mutex.new
       super
-      
-      @device = Audio.inputs[0]
-      @queue = @device.subscribe
-      @semaphore = Mutex.new
-      @thread = Thread.new &method(:thread)
-      @waterfall = Queue.new
-      @waterfall_pending = 0
-    end
-
-    def waterfall_row
-      @semaphore.synchronize { @waterfall_pending += 1 }
-      @waterfall.pop
     end
     
-    def thread
-      fft_count = 0
-      fft_data = []
-      loop do
-        data = @queue.pop
-        fft_count += 1
-        fft_data += data.to_a
-        if fft_count == 4
-          fftval = FFTW3.fft(fft_data, 0)
-          # 716 == 0-2800Hz SSB
-          waterfall_data = Array.new
-          fftval[0...716].each do |v|
-            waterfall_data << Math.hypot(v.real, v.imag)
-          end
-          gif = WaterfallGif.gif([waterfall_data])
-          waterfall_pending = nil
-          @semaphore.synchronize do
-            waterfall_pending = @waterfall_pending
-            @waterfall_pending = 0
-          end
-          waterfall_pending.times { @waterfall.push gif }
-          fft_count = 0
-          fft_data = []
-        end
+    def rate
+      @semaphore.synchronize do
+        return @rx.rate if @rx
+        return @tx.rate if @tx
+        return 0
       end
     end
-  
+    
+    def iq?
+      @semaphore.synchronize do
+        return @rx.channels == 2 if @rx
+        return @tx.channels == 2 if @tx
+        return false
+      end
+    end
+
   end
 end

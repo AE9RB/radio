@@ -1,0 +1,64 @@
+<%
+if post?
+  $rig ||= Radio::Rig.new
+  channel_i, channel_q = case params['channel']
+  when 'iq' then [0,1]
+  when 'qi' then [1,0]
+  else [0,nil]
+  end
+  $rig.rx = Radio::Inputs.new [params['type'], params['id'].to_i], params['rate'].to_i, channel_i, channel_q
+  response.redirect '/'
+end 
+unless response.redirection? -%>
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css" media="screen">
+      body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
+      select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
+    </style>
+  </head>
+  <body>
+    
+    <h2>Input Sources</h2>
+    <% if Radio::Inputs.sources.empty? -%>
+      No input sources found.
+    <% else -%>
+      <dl>
+        <% Radio::Inputs.sources.each do |k, opts| -%>
+          <form action='?' method="post">
+            <% input_type, input_id = k -%>
+            <dt>
+              <input type="submit" value="Select"%>
+              <input type="hidden" name="type" value="<%=h input_type %>" %>
+              <input type="hidden" name="id" value="<%=h input_id %>" %>
+              <%=h input_type %>: <%=h opts[:name] %> 
+            </dt>
+            <dd>
+              <% opts[:rates].reverse.each_with_index do |rate, index| %>
+                <input type="radio" name="rate" value="<%=h rate %>" <%= "checked=checked" if index==0 %> /><%=h rate %>
+              <% end -%>
+            </dd>
+            <dd>
+              <% if opts[:channels] == 1 or input_type != :File %>
+                <input type="radio" name="channel" value="i" />LPCM
+              <% end -%>
+              <% if opts[:channels] == 2 %>
+                <input type="radio" name="channel" value="iq" checked="checked" />I/Q
+                <input type="radio" name="channel" value="qi" />Q/I
+              <% end -%>
+            </dd>
+          </form>
+          <br />
+        <% end -%>
+      </dl>
+    <% end -%>
+
+    <h2>Driver Status</h2>
+    <% Radio::Inputs.status.each do |k, v| -%>
+      <%=h k %>: <%=h v %>
+    <% end -%>
+
+  </body>
+</html>
+<% end -%>

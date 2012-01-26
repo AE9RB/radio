@@ -43,8 +43,8 @@ class Radio
     
       # DSP under an OS requires chunked and streaming processing
       # as opposed to handling every sample as it arrives.
-      # We also want to work with powers of two but sample rates
-      # as multiples of 8000. Let's use 32ms or 31.25 baud.
+      # We want to work with powers of two but sample rates
+      # are multiples of 8000. Let's use a lag of 32ms or 31.25 baud.
       def rx_thread
         qty_samples = @rx.rate / 125 * 4
         loop do

@@ -25,7 +25,10 @@ class Radio
     class CoreAudio
       
       def self.status
-        return "Loaded: #{::CoreAudio.devices.size} devices" if defined? ::CoreAudio
+        if defined? ::CoreAudio
+          count = ::CoreAudio.devices.count {|dev| dev.input_stream.channels > 0}
+          return "Loaded: %d input devices" % count
+        end
         unless defined? @is_darwin
           @is_darwin = (`uname`.strip == 'Darwin') rescue false
         end
@@ -44,7 +47,7 @@ class Radio
           if channels > 0
             result[dev.devid] = {
               name: dev.name,
-              rates: [dev.nominal_rate],
+              rates: [dev.nominal_rate.to_i],
               channels: channels
             }
           end
@@ -53,7 +56,7 @@ class Radio
       end
       
       # Check this because the requested rate isn't always available.
-      attr_reader :rate
+      attr_reader :rate, :channels
 
       # id is the key from the sources hash.
       # rate is the desired hardware rate.  do not decimate/interpolate here.
@@ -64,15 +67,15 @@ class Radio
         @rate = rate
         raise 'I channel fail' unless channel_i < @device.input_stream.channels
         @channel_i = channel_i
-        channels = 1
+        @channels = 1
         if channel_q
           raise 'Q channel fail' unless channel_q < @device.input_stream.channels
           @channel_q = channel_q
           extend IQ
-          channels = 2
+          @channels = 2
         end
         # Half second of buffer
-        coreaudio_input_buffer_size = channels * rate / 2
+        coreaudio_input_buffer_size = @channels * rate / 2
         @buf = @device.input_buffer coreaudio_input_buffer_size
         @buf.start
       end
@@ -85,24 +88,17 @@ class Radio
   
       # Once stopped, rig won't attempt starting again on this object.
       def stop
-        @buf.kill
+        @buf.stop
       end
 
       module IQ
         def call samples
           #TODO optimized yield array of complex
-          raise 'todo'
-          @buf.read(samples*2)[@channel_i,true].to_c/32767
+          @buf.read(samples*2)[@channel_i,true].to_f/32767
         end
       end
   
     end
 
   end
-end
-
-
-if $0 == __FILE__
-  p Radio::Inputs::CoreAudio.status
-  p Radio::Inputs::CoreAudio.sources
 end

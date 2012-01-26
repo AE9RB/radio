@@ -52,16 +52,3 @@ class Radio
     
   end
 end
-
-
-if $0 == __FILE__
-  Dir.glob(File.expand_path('inputs/*.rb', File.dirname(__FILE__))).each do |filename|
-    require filename
-  end
-  p Radio::Inputs.status
-  p Radio::Inputs.sources
-  # s = Radio::Inputs.sources.first
-  # id = s[0]
-  # rate = s[1][:rates][0]
-  # p Radio::Inputs.new(id,rate,0)
-end

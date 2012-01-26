@@ -15,7 +15,7 @@
 
 require 'thread'
 
-class Audio
+class RetiredAudio
   
   # Returns Array of Audio objects with #first being the OS default.
   def self.inputs
@@ -148,7 +148,7 @@ end
 
 if $0 == __FILE__
 
-  aud_dev = Audio.inputs[0]
+  aud_dev = RetiredAudio.inputs[0]
   queue = aud_dev.subscribe
   
   25.times do

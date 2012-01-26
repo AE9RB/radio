@@ -1,8 +1,15 @@
 <%
-
-$rig ||= Rig.new
-@response.body = [$rig.waterfall_row]
+$waterfall_gradient ||= (0..127).collect do |i|
+  r = g = b = Math.log((i+16)**6.35)*18-312
+  redshift = i - 64
+  if redshift > 0
+    b = g -= redshift * 3
+  end
+  b *= 0.95
+  [r,g,b]
+end
+fftval = $rig.fft 1024
+@response.body = [Radio::Gif.waterfall($waterfall_gradient, [fftval.slice(0..800).abs])]
 @response.headers['Content-Type'] = 'image/gif'
 @response.headers["Cache-Control"] = 'max-age=0, private, must-revalidate'
-
 %>

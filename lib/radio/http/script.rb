@@ -24,7 +24,7 @@ class Radio
     # you can use for redirects, cookies, and other controller actions.
     class Script < Rack::Request
       
-      extend ERB::Util
+      include ERB::Util
 
       class NotFound < StandardError
       end
