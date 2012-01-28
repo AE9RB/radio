@@ -14,7 +14,7 @@
 
 
 class Radio
-  module Inputs
+  module Input
     
     # Keep this namespace clean because we search inputs by
     # finding the classes from Radio::Inputs.constants.
@@ -23,7 +23,7 @@ class Radio
     # dependencies. This allows us to present a basic debug screen.
     def self.status
       s = {}
-      Radio::Inputs.constants.collect do |input_name|
+      Radio::Input.constants.collect do |input_name|
         s[input_name] = eval(input_name.to_s).status
       end
       s
@@ -32,23 +32,23 @@ class Radio
     # Consolidate all sources from all inputs and add the class name to the keys.
     def self.sources
       s = {}
-      Radio::Inputs.constants.each do |input_name|
-        eval(input_name.to_s).sources.each do |id, source|
-          s[[input_name, id]] = source
+      Radio::Input.constants.each do |type|
+        eval(type.to_s).sources.each do |id, source|
+          s[[type, id]] = source
         end
       end
       s
     end
     
     # You can't new a module so this switches into the specific class.
-    def self.new id, rate, channel_i, channel_q=nil
-      input_name, id = id
+    def self.new type, id, rate, channel_i, channel_q=nil
       # defend the eval
-      unless Radio::Inputs.constants.include? input_name.to_sym
-        raise NameError, "uninitialized constant Radio::Inputs::#{input_name}"
+      unless Radio::Input.constants.include? type.to_sym
+        raise NameError, "uninitialized constant Radio::Input::#{type}"
       end
-      eval(input_name.to_s).new id, rate, channel_i, channel_q
+      eval(type.to_s).new id, rate, channel_i, channel_q
     end
     
   end
 end
+

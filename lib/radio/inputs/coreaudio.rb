@@ -20,7 +20,7 @@ end
 
 
 class Radio
-  module Inputs
+  module Input
 
     class CoreAudio
       
@@ -41,7 +41,6 @@ class Radio
       def self.sources
         return {} unless defined? ::CoreAudio
         result = {}
-        warnings = []
         ::CoreAudio.devices.each do |dev|
           channels = dev.input_stream.channels
           if channels > 0
@@ -55,14 +54,13 @@ class Radio
         result
       end
       
-      # Check this because the requested rate isn't always available.
       attr_reader :rate, :channels
 
       # id is the key from the sources hash.
       # rate is the desired hardware rate.  do not decimate/interpolate here.
       # samples are the quantity to be processed on each call.
       def initialize id, rate, channel_i, channel_q
-        @device = ::CoreAudio::AudioDevice.new id
+        @device = ::CoreAudio::AudioDevice.new id.to_i
         raise 'sample rate mismatch' unless rate == @device.nominal_rate
         @rate = rate
         raise 'I channel fail' unless channel_i < @device.input_stream.channels

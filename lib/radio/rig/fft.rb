@@ -32,7 +32,7 @@ class Radio
       # keep_alive in secs set high enough so intervals between results are accurate
       # Results are not queued; missed processing is skipped.
       # This is meant to be an ideal interface for Web UI work, not signal analysis.
-      def fft size, frequency=1.0, keep_alive=5.0
+      def fft size, frequency=1.0, keep_alive=2.0
         @semaphore.synchronize do
           @fft_pending[[size, frequency, keep_alive]] << Thread.current
         end
@@ -64,12 +64,12 @@ class Radio
             if buf_size > collect_size and buf_size > size_freq
               # Discard any extra data we won't use (frequency>1)
               while buf_size - data.first.size > collect_size
-                buf_size -= data.first.size
-                data.shift 
+                buf_size -= data.shift.size
               end
               pending_key = [size, frequency, keep_alive]
               if @fft_pending.has_key? pending_key
-                fft_data = NArray.to_na(data).reshape!(buf_size)
+                fft_data = NArray.to_na data
+                fft_data.reshape! fft_data.total
                 fft_out = FFTW3.fft(fft_data[-collect_size..-1], 0) 
                 if fft_out.size == size
                   v[2] = fft_out
@@ -82,8 +82,7 @@ class Radio
               # Discard enough old buffers to accommodate the frequency
               trim_size = [0, collect_size - size_freq].max
               while buf_size > trim_size
-                data.shift 
-                buf_size = data.reduce(0){|a,b|a+b.size}
+                buf_size -= data.shift.size
               end
             end
           end

@@ -13,155 +13,110 @@
 # limitations under the License.
 
 
-require 'thread'
 
-class RetiredAudio
-  
-  # Returns Array of Audio objects with #first being the OS default.
-  def self.inputs
-    @inputs ||= [new]
-  end
-  
-  def initialize
-    @queues = {}
-    @semaphore = Mutex.new
-  end
-  
-  # Returns a Queue instance that will populate with
-  # enumerations of floats from -1.0..1.0.
-  def subscribe channel=0
-    queue = Queue.new
-    do_start = false
-    @semaphore.synchronize do
-      do_start = @queues.empty?
-      @queues[queue] = channel
-    end
-    start if do_start
-    queue
-  end
-  
-  def unsubscribe queue
-    do_stop = false
-    @semaphore.synchronize do
-      @queues.delete queue
-      do_stop = @queues.empty?
-    end
-    stop if do_stop
-  end
-  
-  private
-  
-  def thread
-    filename = File.expand_path '../../../../test/wav/bpsk8k.wav', __FILE__
-    fmt, data = load_wav filename
-    data.force_encoding('binary')
-
-    i = ITERATORS['C'].enum_for(:call, data)
-    j = []
-    i.each_slice(512) do |s|
-      j << s if s.size == 512
-    end
-
-    loop do
-      j.each do |s|
-        sleep 0.064
-        @semaphore.synchronize do
-          @queues.each do |queue, clannel|
-            queue.push s
+class Radio
+  module Input
+    class File
+      class WAV
+        
+        attr_reader :rate
+        
+        def initialize id, rate, channel_i, channel_q
+          @file = ::File.new id
+          #TODO validate header instead?
+          @file.read 12 # discard header
+          @rate = rate
+          @channel_i = channel_i
+          @channel_q = channel_q
+          @data = [next_data]
+          @time = Time.now
+        end
+        
+        def call samples
+          @time += 1.0/(rate/samples)
+          sleep [0,@time-Time.now].max
+          while @data.reduce(0){|a,b|a+b.size} < samples
+            @data.push next_data
+          end
+          if channels > 1
+            out = NArray.scomplex samples
+          else
+            out = NArray.sfloat samples
+          end
+          i = 0
+          while i < samples
+            if @data.first.size/@channels > samples-i
+              # p as_i @data.first[0...(samples-i)]
+              out[i..-1] = convert @data.first[0...(samples-i)]
+              @data[0] = @data.first[(samples-i)..-1]
+              i = samples
+            else
+              converted_data = convert @data.shift
+              out[i...(i+converted_data.size)] = converted_data
+              i += converted_data.size
+            end
+          end
+          out
+        end
+        
+        def channels
+          2 if @channel_q and @channels > 1
+          1
+        end
+        
+        def stop
+          @file.close
+        end
+        
+        private
+        
+        def convert d
+          out = case @bit_sample
+          when 8 then NArray.to_na(d,NArray::BYTE).to_f.collect!{|v|(v-128)/127}
+          when 16 then NArray.to_na(d,NArray::SINT).to_f.div! 32767
+          # when 24 then NArray.to_na(d,NArray::???).to_f.collect!{|v|(v-8388608)/8388607}
+          else
+            raise "Unsupported sample size: #{@bit_sample}" 
+          end
+          return out if channels == 1 and @channels == 1
+          out.reshape! @channels, out.size/@channels
+          if channels == 1
+            out[@channel_i,true]
+          else
+            c_out = NArray.scomplex n.size/@channels*2
+            c_out.real = out[@channel_i,true]
+            c_out.imag = out[@channel_q,true]
           end
         end
-      end
-    end
-  end
-  
-  def start
-    @thread ||= Thread.new &method(:thread)
-  end
-  
-  def stop
-    @thread.kill.join
-    @thread = nil
-  end
-  
-  def load_wav filename
-    sample_rate = nil
-    fmt = nil
-    data = ''
-    File.open(filename) do |file|
-      head = file.read(12)
-      until file.eof?
-        type = file.read(4)
-        size = file.read(4).unpack("V")[0].to_i
-        case type
-        when 'fmt '
-          fmt = file.read(size)
-          fmt = {
-            :id => fmt.slice(0,2).unpack('c')[0],
-            :channel => fmt.slice(2,2).unpack('c')[0],
-            :hz => fmt.slice(4,4).unpack('V').join.to_i,
-            :byte_sec => fmt.slice(8,4).unpack('V').join.to_i,
-            :block_size => fmt.slice(12,2).unpack('c')[0],
-            :bit_sample => fmt.slice(14,2).unpack('c')[0]
-          }
-        when 'data'
-          data += file.read size
-        else
-          raise type
+        
+        def next_data
+          loop do
+            until @file.eof?
+              type = @file.read(4)
+              size = @file.read(4).unpack("V")[0].to_i
+              case type
+              when 'fmt '
+                fmt = @file.read(size)
+                @id = fmt.slice(0,2).unpack('c')[0]
+                @channels = fmt.slice(2,2).unpack('c')[0]
+                @rate = fmt.slice(4,4).unpack('V').join.to_i
+                @byte_sec = fmt.slice(8,4).unpack('V').join.to_i
+                @block_size = fmt.slice(12,2).unpack('c')[0]
+                @bit_sample = fmt.slice(14,2).unpack('c')[0]
+                next
+              when 'data'
+                return @file.read size
+              else
+                raise "Unknown GIF type: #{type}"
+              end
+            end
+            @file.rewind
+            @file.read 12
+          end
         end
-      end
-    end
-    [fmt, data]
-  end
-  
-  ITERATORS = Hash.new do |hash, packing|
-    packing = packing.to_s.dup
-    sample_size = [0].pack(packing).size
-    case ("\x80"*16).unpack(packing)[0]
-    when 128
-      max = 128
-      offset = -128
-    when -128
-      max = 128
-      offset = 0
-    when 32768 + 128
-      max = 32768
-      offset = -32768
-    when -32768 + 128
-      max = 32768
-      offset = 0
-    else
-      raise 'unable to interpret packing format'
-    end
-    hash[packing] = Proc.new do |data, &block|
-      pos = 0
-      size = data.size
-      while pos < size
-        sample = data.slice(pos,sample_size).unpack(packing)[0] || 0
-        block.call (sample + offset).to_f / max
-        pos += sample_size
+        
       end
     end
   end
-  
-  
 end
 
-if $0 == __FILE__
-
-  aud_dev = RetiredAudio.inputs[0]
-  queue = aud_dev.subscribe
-  
-  25.times do
-    data = queue.pop
-    a = []
-    x = Time.now
-    data.each do |f|
-      a << f if a.size < 5
-    end
-    x = Time.now-x
-    p [Time.now, a]
-  end
-  
-  aud_dev.unsubscribe queue
-  
-end

@@ -6,7 +6,7 @@ if post?
   when 'qi' then [1,0]
   else [0,nil]
   end
-  $rig.rx = Radio::Inputs.new [params['type'], params['id'].to_i], params['rate'].to_i, channel_i, channel_q
+  $rig.rx = Radio::Input.new params['type'], params['id'], params['rate'].to_i, channel_i, channel_q
   response.redirect '/'
 end 
 unless response.redirection? -%>
@@ -21,11 +21,11 @@ unless response.redirection? -%>
   <body>
     
     <h2>Input Sources</h2>
-    <% if Radio::Inputs.sources.empty? -%>
+    <% if Radio::Input.sources.empty? -%>
       No input sources found.
     <% else -%>
       <dl>
-        <% Radio::Inputs.sources.each do |k, opts| -%>
+        <% Radio::Input.sources.each do |k, opts| -%>
           <form action='?' method="post">
             <% input_type, input_id = k -%>
             <dt>
@@ -41,7 +41,7 @@ unless response.redirection? -%>
             </dd>
             <dd>
               <% if opts[:channels] == 1 or input_type != :File %>
-                <input type="radio" name="channel" value="i" />LPCM
+                <input type="radio" name="channel" value="i" checked="checked" />LPCM
               <% end -%>
               <% if opts[:channels] == 2 %>
                 <input type="radio" name="channel" value="iq" checked="checked" />I/Q
@@ -55,8 +55,8 @@ unless response.redirection? -%>
     <% end -%>
 
     <h2>Driver Status</h2>
-    <% Radio::Inputs.status.each do |k, v| -%>
-      <%=h k %>: <%=h v %>
+    <% Radio::Input.status.each do |k, v| -%>
+      <%=h k %>: <%=h v %> <br />
     <% end -%>
 
   </body>
