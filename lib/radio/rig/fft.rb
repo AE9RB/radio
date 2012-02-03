@@ -70,7 +70,7 @@ class Radio
               if @fft_pending.has_key? pending_key
                 fft_data = NArray.to_na data
                 fft_data.reshape! fft_data.total
-                fft_out = FFTW3.fft(fft_data[-collect_size..-1], 0) 
+                fft_out = FFTW3.fft(fft_data[-collect_size..-1]) 
                 if fft_out.size == size
                   v[2] = fft_out
                 else

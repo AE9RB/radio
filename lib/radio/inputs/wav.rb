@@ -33,9 +33,10 @@ class Radio
         end
         
         def call samples
-          @time += 1.0/(rate/samples)
+          sample_size = @channels * (@bit_sample/8)
+          @time += 1.0/(rate/(samples*sample_size))
           sleep [0,@time-Time.now].max
-          while @data.reduce(0){|a,b|a+b.size} < samples
+          while @data.reduce(0){|a,b|a+b.size} < samples * sample_size
             @data.push next_data
           end
           if channels > 1
@@ -45,10 +46,9 @@ class Radio
           end
           i = 0
           while i < samples
-            if @data.first.size/@channels > samples-i
-              # p as_i @data.first[0...(samples-i)]
-              out[i..-1] = convert @data.first[0...(samples-i)]
-              @data[0] = @data.first[(samples-i)..-1]
+            if @data.first.size/sample_size > samples-i
+              out[i..-1] = convert @data.first[0...(samples-i)*sample_size]
+              @data[0] = @data.first[(samples-i)*sample_size..-1]
               i = samples
             else
               converted_data = convert @data.shift
@@ -60,7 +60,7 @@ class Radio
         end
         
         def channels
-          2 if @channel_q and @channels > 1
+          return 2 if @channel_q and @channels > 1
           1
         end
         
@@ -83,12 +83,14 @@ class Radio
           if channels == 1
             out[@channel_i,true]
           else
-            c_out = NArray.scomplex n.size/@channels*2
-            c_out.real = out[@channel_i,true]
+            c_out = NArray.scomplex out[0,true].size
+            c_out[0..-1] = out[@channel_i,true]
             c_out.imag = out[@channel_q,true]
+            c_out
           end
         end
         
+        #TODO read data in chunks smaller than size (which is often the whole file)
         def next_data
           loop do
             until @file.eof?
@@ -111,7 +113,7 @@ class Radio
               end
             end
             @file.rewind
-            @file.read 12
+            @file.read 12 # discard header
           end
         end
         
