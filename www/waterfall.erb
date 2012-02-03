@@ -8,8 +8,13 @@ $waterfall_gradient ||= (0..127).collect do |i|
   b *= 0.95
   [r,g,b]
 end
-fftval = $rig.fft 1024
-@response.body = [Radio::Gif.waterfall($waterfall_gradient, [fftval.abs])]
+spectrum = case
+when $rig.rate <= 24000 then $rig.spectrum 1024, 1.0
+when $rig.rate <= 48000 then $rig.spectrum 2048, 2.0
+when $rig.rate <= 96000 then $rig.spectrum 2048, 4.0
+else $rig.spectrum 2048, 8.0
+end
+@response.body = [Radio::Gif.waterfall($waterfall_gradient, [spectrum])]
 @response.headers['Content-Type'] = 'image/gif'
 @response.headers["Cache-Control"] = 'max-age=0, private, must-revalidate'
 %>

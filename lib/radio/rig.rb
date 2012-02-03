@@ -17,7 +17,7 @@ class Radio
 
   class Rig
     
-    include FFT
+    include Spectrum
     include Rx
   
     def initialize

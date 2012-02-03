@@ -49,7 +49,7 @@ class Radio
         qty_samples = @rx.rate / 125 * 4
         loop do
           samples = @rx.call qty_samples
-          fft_collect samples
+          spectrum_collect samples
         end
       end
     

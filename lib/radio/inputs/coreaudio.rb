@@ -91,8 +91,11 @@ class Radio
 
       module IQ
         def call samples
-          #TODO optimized yield array of complex
-          @buf.read(samples*2)[@channel_i,true].to_f/32767
+          b = @buf.read samples
+          c_out = NArray.scomplex samples
+          c_out[0..-1] = b[@channel_i,true].to_f/32767
+          c_out.imag = b[@channel_q,true].to_f/32767
+          c_out
         end
       end
   
