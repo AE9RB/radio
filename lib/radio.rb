@@ -40,10 +40,10 @@ class Radio
       use Rack::CommonLogger
       use Rack::ShowExceptions
       use Rack::Lint
-      run Radio::HTTP::Server.new
-      # Thin threading model obtained from Radio::HTTP::Server
+      run @radio = Radio::HTTP::Server.new
+      # Thin threading model
       def deferred? env
-        @ins.last.deferred? env
+        @radio.deferred? env
       end
     end
     

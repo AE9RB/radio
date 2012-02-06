@@ -71,8 +71,8 @@ class Radio
                 spectrum_out = FFTW3.fft(spectrum_data[-collect_size..-1]) 
                 if spectrum_out.size == size
                   result = NArray.sfloat size
-                  result[0...size/2] = spectrum_out[size/2..-1]
-                  result[size/2..-1] = spectrum_out[0...size/2]
+                  result[0...size/2] = spectrum_out[size/2..-1].div!(size)
+                  result[size/2..-1] = spectrum_out[0...size/2].div!(size)
                   v[2] = result.abs
                 else
                   v[2] = spectrum_out[0...size].div!(size).abs

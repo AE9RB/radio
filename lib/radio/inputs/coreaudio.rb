@@ -26,13 +26,12 @@ class Radio
       
       def self.status
         if defined? ::CoreAudio
-          count = ::CoreAudio.devices.count {|dev| dev.input_stream.channels > 0}
-          return "Loaded: %d input devices" % count
+          return "Loaded: %d input devices" % sources.count
         end
         unless defined? @is_darwin
           @is_darwin = (`uname`.strip == 'Darwin') rescue false
         end
-        return "Unsupported: requires Apple Macintosh" unless @is_darwin
+        return "Unsupported: requires Apple OS" unless @is_darwin
         return 'Unavailable: gem install coreaudio'
       end
   
@@ -58,11 +57,9 @@ class Radio
 
       # id is the key from the sources hash.
       # rate is the desired hardware rate.  do not decimate/interpolate here.
-      # samples are the quantity to be processed on each call.
       def initialize id, rate, channel_i, channel_q
         @device = ::CoreAudio::AudioDevice.new id.to_i
-        raise 'sample rate mismatch' unless rate == @device.nominal_rate
-        @rate = rate
+        @rate = @device.nominal_rate
         raise 'I channel fail' unless channel_i < @device.input_stream.channels
         @channel_i = channel_i
         @channels = 1
@@ -81,7 +78,7 @@ class Radio
       # This is called on its own thread in Rig and is expected to block.
       def call samples
         # CoreAudio range of -32767..32767 makes easy conversion to -1.0..1.0
-        @buf.read(samples)[@channel_i,true].to_f/32767
+        @buf.read(samples)[@channel_i,true].to_f.div!(32767)
       end
   
       # Once stopped, rig won't attempt starting again on this object.
@@ -93,8 +90,8 @@ class Radio
         def call samples
           b = @buf.read samples
           c_out = NArray.scomplex samples
-          c_out[0..-1] = b[@channel_i,true].to_f/32767
-          c_out.imag = b[@channel_q,true].to_f/32767
+          c_out[0..-1] = b[@channel_i,true].to_f.div!(32767)
+          c_out.imag = b[@channel_q,true].to_f.div!(32767)
           c_out
         end
       end

@@ -46,7 +46,15 @@ class Radio
       unless Radio::Input.constants.include? type.to_sym
         raise NameError, "uninitialized constant Radio::Input::#{type}"
       end
-      eval(type.to_s).new id, rate, channel_i, channel_q
+      input = eval(type.to_s).new id, rate, channel_i, channel_q
+      # Ask for and discard the first sample to report errors here
+      begin
+        input.call 1
+      rescue Exception => e
+        input.stop
+        raise e
+      end
+      input
     end
     
   end
