@@ -70,17 +70,49 @@ class Radio
         result
       end
       
-      attr_reader :rate, :channels
-      
       def initialize id, rate, channel_i, channel_q
         @stream = ::ALSA::PCM::Capture.new
         @stream.open id
-        @rate = @stream.hardware_parameters.sample_rate
-        @channels = @stream.hardware_parameters.channels
+        @channel_i = channel_i
+        @channel_q = channel_q
+      end
+      
+      def rate
+        @stream.hardware_parameters.sample_rate
+      end
+      
+      def channels
+        return 2 if @channel_q and @stream.hardware_parameters.channels > 1
+        1
       end
       
       def call samples
-        raise 'TODO: not quite done yet'
+        
+        out=nil
+        buf_size = @stream.hw_params.buffer_size_for(samples)
+        FFI::MemoryPointer.new(:char, buf_size) do |buffer|
+          @stream.read_buffer buffer, samples
+          out = buffer.read_string(buf_size)
+          NArray.to_na(out, NArray::SINT).to_f.div! 32767
+        end
+        stream_channels = @stream.hardware_parameters.channels
+        out = case buf_size / samples / stream_channels
+        when 1 then NArray.to_na(out,NArray::BYTE).to_f.collect!{|v|(v-128)/127}
+        when 2 then NArray.to_na(out,NArray::SINT).to_f.div! 32767
+        # when 3 then NArray.to_na(d,NArray::???).to_f.collect!{|v|(v-8388608)/8388607}
+        else
+          raise "Unsupported sample size: #{@bit_sample}" 
+        end
+        return out if channels == 1 and stream_channels == 1
+        out.reshape! stream_channels, out.size/stream_channels
+        if channels == 1
+          out[@channel_i,true]
+        else
+          c_out = NArray.scomplex out[0,true].size
+          c_out[0..-1] = out[@channel_i,true]
+          c_out.imag = out[@channel_q,true]
+          c_out
+        end
       end
       
       def stop
@@ -92,3 +124,12 @@ class Radio
   end
 end
 
+
+if $0 == __FILE__
+  
+  require 'narray'
+  a = Radio::Input::ALSA
+  i = a.new 'default', 44100, 0, nil
+  p i.call 8
+  
+end

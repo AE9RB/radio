@@ -21,11 +21,11 @@ unless response.redirection? -%>
   <body>
     
     <h2>Input Sources</h2>
-    <% if Radio::Input.sources.empty? -%>
+    <% if (input_sources = Radio::Input.sources).empty? -%>
       No input sources found.
     <% else -%>
       <dl>
-        <% Radio::Input.sources.each do |k, opts| -%>
+        <% input_sources.each do |k, opts| -%>
           <form action='?' method="post">
             <% input_type, input_id = k -%>
             <dt>
