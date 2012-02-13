@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'fftw3'
   s.add_dependency 'thin'
+  s.add_dependency 'libusb'
   # s.add_development_dependency 'minitest'
 
   dirs = %w(bin lib www)

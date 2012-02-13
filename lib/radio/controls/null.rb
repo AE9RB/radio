@@ -14,33 +14,19 @@
 
 
 class Radio
-
-  class Rig
+  module Controls
+    class Null
     
-    include Spectrum
-    include Rx
-    include LO
-  
-    def initialize
-      @semaphore = Mutex.new
-      super
-    end
-    
-    def rate
-      @semaphore.synchronize do
-        return @rx.rate if @rx
-        return @tx.rate if @tx
-        return 0
+      attr_accessor :lo
+      
+      def initialize
+        @lo = 0.0
       end
-    end
-    
-    def iq?
-      @semaphore.synchronize do
-        return @rx.channels == 2 if @rx
-        return @tx.channels == 2 if @tx
-        return false
-      end
-    end
 
+      def stop
+        #noop
+      end
+
+    end
   end
 end
