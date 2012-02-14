@@ -1,3 +1,3 @@
 class Radio
-  VERSION = '0.0.1.dev'
+  VERSION = '0.0.3.dev'
 end

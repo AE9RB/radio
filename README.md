@@ -8,7 +8,7 @@ using open and accessible technologies such as HTML and Javascript.
 
  * HTTP Server: Working
  * Spectrum Analyzer: Working
- * Rig Control: current WIP
+ * Rig Control: Working
  * PSK31: LPCM only, next WIP
  * SSB: Not Started
  * CW: Not Started
