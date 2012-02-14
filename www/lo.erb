@@ -1,0 +1,21 @@
+<% if xhr?
+  $rig.lo = params['freq'].to_f
+  @response.body = [$rig.lo.to_s]
+  @response.headers['Content-Type'] = 'text/plain'
+end -%>
+<form action="lo" id="freqForm">
+  <input type="text" name="freq" value="<%= $rig.lo %>" %>
+</form>
+<script type="text/javascript">
+  $("#freqForm").submit(function(event) {
+    event.preventDefault(); 
+    var $form = $( this ),
+        term = $form.find( 'input[name="freq"]' ).val(),
+        url = $form.attr( 'action' );
+    $.post( url, { freq: term },
+      function( data ) {
+        $form.find( 'input[name="freq"]' ).val(data)
+      }
+    );
+  });  
+</script>

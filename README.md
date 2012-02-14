@@ -1,23 +1,19 @@
 # Twenty-First Century Amateur Radio
 
-An http server for interactive signal processing.
-
-The lack of an SDR application that does both voice and data has generated
-a lot of interest in transporting PCM and I/Q data over networks and between
-applications. Rather than present another solution to produce and consume audio
-streams, this project is focusing on a solution that enables development of
-HTML and Javascript radios with automation and mailbox capabilities.
+An http server for interactive digital signal processing.
+The mission is to find a solution that enables development of radios
+using open and accessible technologies such as HTML and Javascript.
 
 ## Status
 
-HTTP Server: Working
-Spectrum Analyzer: Working
-Rig Control: current WIP
-PSK31: LPCM only, next WIP
-SSB: Not Started
-CW: Not Started
-User Interface: Proof-of-concept, please contribute
-More drivers: always a WIP, please contribute
+ * HTTP Server: Working
+ * Spectrum Analyzer: Working
+ * Rig Control: current WIP
+ * PSK31: LPCM only, next WIP
+ * SSB: Not Started
+ * CW: Not Started
+ * User Interface: experimental, please contribute
+ * More drivers: always a WIP, please contribute
 
 ## Installation
 

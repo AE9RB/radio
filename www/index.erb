@@ -1,4 +1,4 @@
-<% if !$rig; response.redirect 'setup'; else
+<% if !$rig; response.redirect 'setup/input'; else
 -%><!DOCTYPE html>
 <html>
   <head>
@@ -6,6 +6,7 @@
       body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
       select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
       img{display:block}
+      #waterfall{height: 75px; width: 95%; overflow-x:scroll; overflow-y: hidden; background:#000}
     </style>
     <script src='jquery-1.7.js'></script>
   </head>
@@ -15,18 +16,19 @@
       <a href="https://github.com/ham21/radio">Ham21</a>
       - The Twenty-First Century Amateur Radio Project
     </h2>
-    <p><a href="setup">SETUP</a></p>
+    <p>SETUP: <a href="setup/input">Input</a> | <a href="setup/lo">LO</a></p>
+    
+    <%= render 'lo' %>
     
     <div id="waterfall">
     </div>
-    
     
     <script type="text/javascript" charset="utf-8">
       var waterfallSeqNo = 0;
       function nextWaterfall() {
         $('#waterfall').prepend('<img src="waterfall?' + waterfallSeqNo + '" alt="" onload="nextWaterfall()"></img>');
         waterfallSeqNo++;
-        if (waterfallSeqNo > 50) $('#waterfall img:last-child').remove();
+        if (waterfallSeqNo > 100) $('#waterfall img:last-child').remove();
       }
       $(document).ready(function() {
         nextWaterfall();

@@ -28,10 +28,14 @@ class Radio
 
       def initialize options={}
         @divisor = options.delete(:divisor) || 4
+        index = options.delete(:index) || 0
         @options = options
-        @options[:idVendor] ||= 0x16c0
-        @options[:idProduct] ||= 0x05dc
-        @device = LIBUSB::Context.new.devices(options).first
+        if options.empty?
+          @options[:idVendor] ||= 0x16c0
+          @options[:idProduct] ||= 0x05dc
+        end
+        @device = LIBUSB::Context.new.devices(options)[index]
+        raise 'USB Device Not Found' unless @device
       end
   
       def lo= freq
@@ -59,7 +63,7 @@ class Radio
           handle.release_interface 0
         end
         @lo_expires = Time.now + DWELL
-        @lo = (data.unpack('L')[0].to_f / (1<<21) / @divisor).round 3
+        @lo = (data.unpack('L')[0].to_f / (1<<21) / @divisor).round 6
       end
     
       def stop
@@ -71,13 +75,3 @@ class Radio
     
 end
 
-
-if $0 == __FILE__
-  
-  x = Radio::Controls::Si570AVR.new
-  p x.lo
-  x.lo = 6.987
-  p x.lo
-  x.lo = 1.234
-  
-end

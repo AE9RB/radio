@@ -1,0 +1,36 @@
+<%
+if post?
+  $rig.lo = case params['type']
+  when 'softrock' then Radio::Controls::Si570AVR.new
+  else Radio::Controls::Null.new
+  end
+  response.redirect '/'
+end 
+unless response.redirection? -%>
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css" media="screen">
+      body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
+      select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
+    </style>
+  </head>
+  <body>
+    
+    <h2>Local Oscillator Control</h2>
+    <form action='?' method="post">
+      <input type="submit" value="Select"%>
+      <input type="hidden" name="type" value="null" %>
+      No control.
+    </form>
+    <br />
+    <form action='?' method="post">
+      <input type="submit" value="Select"%>
+      <input type="hidden" name="type" value="softrock" %>
+      SoftRock Si570 (DG8SAQ/PE0FKO)
+    </form>
+    <br />
+
+  </body>
+</html>
+<% end -%>
