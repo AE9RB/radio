@@ -2,7 +2,7 @@
 
 An http server for interactive digital signal processing.
 The mission is to find a solution that enables development of radios
-using open and accessible technologies such as HTML and Javascript.
+using open and approachable technologies such as HTML and Javascript.
 
 ## Status
 
@@ -34,7 +34,7 @@ Apple OSX using homebrew:
 
     brew install fftw libusb
     
-Windows does not have dependencies; begin with Ruby install.
+Windows needs fftw3 installed but the install process is not yet known.
     
 ### Ruby
 
