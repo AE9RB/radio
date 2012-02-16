@@ -2,6 +2,13 @@
 if post?
   $rig.lo = case params['type']
   when 'softrock' then Radio::Controls::Si570AVR.new
+  when 'civ'
+    Radio::Controls::CIV.new {
+      port:params['port'],
+      baud:params['baud'],
+      host:params['host'],
+      device:params['device'],
+    }
   else Radio::Controls::Null.new
   end
   response.redirect '/'
@@ -28,6 +35,30 @@ unless response.redirection? -%>
       <input type="submit" value="Select"%>
       <input type="hidden" name="type" value="softrock" %>
       SoftRock Si570 (DG8SAQ/PE0FKO)
+    </form>
+    <br />
+    <form action='?' method="post">
+      <input type="submit" value="Select"%>
+      <input type="hidden" name="type" value="civ" %>
+      Icom CI-V (supports CT-17 and RS-422 multi-drop)
+      <br/>
+      Port:
+      <select name="port">
+        <% 0.upto(7) do |num| -%>
+          <option value="<%=h num %>"><%=h num %></option>
+        <% end -%>
+      </select>
+      Baud:
+      <select name="baud">
+        <% [300,1200,2400,9600,19200].each do |num| -%>
+          <option value="<%=h num %>" <%= 'selected="selected"' if num==9600 %>><%=h num %></option>
+        <% end -%>
+      </select>
+      Host:
+      <input type="text" name="host" value="224"%>
+      Device:
+      <input type="text" name="device" value="80" %>
+      
     </form>
     <br />
 

@@ -15,6 +15,8 @@
 
 require 'fftw3'
 require 'thin'
+require 'libusb'
+require 'serialport'
 
 # Suffer load order here
 %w{
