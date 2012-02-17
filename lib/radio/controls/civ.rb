@@ -21,7 +21,7 @@ class Radio
     
     # The serialport gem is not flexible with device names, so:
     # sudo ln -s /dev/cu.usbserial-A600BVS2 /dev/cuaa0
-
+    
     # You can use this somewhat asynchronously but if you queue up
     # multiple commands of the same type or multiple commands that
     # return OK/NG then it can't be perfect. This is a limitation
@@ -31,18 +31,15 @@ class Radio
     class CIV
       
       # An exception is raised when commands do not get a response.
-      # RETRY should be low enough to make many attempts before a timeout.
       TIMEOUT = 0.5
       
       # Commands are retried automatically when we're not seeing messages.
-      # This happens when you have a collision while transmitting.
-      RETRY = 0.05
+      # This happens when you have a collision.  Also consider that older
+      # radios will need longer to respond.
+      WATCHDOG = 0.2
       
       # Cache responses briefly
-      DWELL = 0.1 #seconds
-      
-      # All commands that only return OK or NG.
-      OKNG = [5, 6] #TODO
+      DWELL = 0.1
       
       def initialize options={}
         @semaphore = Mutex.new
@@ -50,21 +47,19 @@ class Radio
         @host = options[:host]|| 0xE0 # my address
         @device = options[:device]|| 0x50 # radio address
         port = options[:port]|| 0
-        @baud = options[:baud]|| 9600
+        @baud = options[:baud]|| 1200
         bits = options[:bits]|| 8
         stop = options[:stop]|| 1
         parity = options[:parity]|| SerialPort::NONE
         @io = SerialPort.new port, @baud, bits, stop, parity
+        setup options[:compat]
         @state = :WaitPreamble1
-        @carrier_sense = false
+        @carrier_sense = 0
         @last_message = Time.now
         @machine = Thread.new &method(:machine)
         @watchdog = Thread.new &method(:watchdog)
-        begin
-          lo
-        rescue Exception => e
-          raise "Icom CI-V radio not found"
-        end
+        @lo = nil
+        raise "Icom CI-V device not found" unless lo
       end
       
       def stop
@@ -79,10 +74,17 @@ class Radio
         @semaphore.synchronize do
           return @lo if @lo and Time.now < @lo_expires
         end
-        lo = command 3
-        @semaphore.synchronize do
-          @lo_expires = Time.now + DWELL
-          @lo = lo
+        begin
+          lo = command 3
+          @semaphore.synchronize do
+            @lo_expires = Time.now + DWELL
+            @lo = lo
+          end
+        rescue RuntimeError => e
+          # defeat timeout when spinning the dial
+          # we can pick up the value from the 0x00 updates
+          @lo
+          # will all commands timeout while spinning?
         end
       end
 
@@ -95,6 +97,8 @@ class Radio
         end
       end
       
+      private
+      
       def command type, data_or_array = nil
         cmd = "\xFE\xFE#{@device.chr}\xE0#{type.chr}".force_encoding("binary")
         if Array === data_or_array
@@ -105,19 +109,25 @@ class Radio
         cmd += "\xfd".force_encoding("binary")
         queue = Queue.new
         @semaphore.synchronize do
-          @io.write cmd
+          send_when_clear cmd
           @queue << [queue, type, cmd, Time.now] unless type < 2
         end
         if type < 2
           true
         else
           result = queue.pop
-          raise result if Exception === result
+          raise result if RuntimeError === result
           result
         end
       end
       
-      private
+      def requeue cmd_queue, cmd_type, cmd_msg, cmd_time
+        if Time.now - cmd_time > TIMEOUT
+          cmd_queue << RuntimeError.new("Command #{cmd_type} timeout.")
+        end
+        send_when_clear cmd_msg
+        @queue << [cmd_queue, cmd_type, cmd_msg, cmd_time]
+      end
       
       def bcd_to_num s
         mult = 1
@@ -145,30 +155,29 @@ class Radio
           @semaphore.synchronize do
             @last_message = Time.now if @queue.empty?
             elapsed = Time.now - @last_message
-            if elapsed > RETRY
+            if elapsed > WATCHDOG
               # A sent message must have got lost in collision
               # We only need to resend one to get things rolling again
-              cmd_queue, cmd_type, cmd_msg, cmd_time = @queue.pop
-              if Time.now - cmd_time > TIMEOUT
-                cmd_queue << RuntimeError.new("Command #{cmd_type} timeout.")
-              end
-              send_when_clear cmd_msg
-              @queue << [cmd_queue, cmd_type, cmd_msg, cmd_time]
+              requeue *@queue.pop
               elapsed = 0
             end
           end
-          sleep RETRY - elapsed
+          sleep WATCHDOG - elapsed
         end
       end
       
+      # Wait to make sure there isn't any data moving
+      # on the RS-422 2-wire bus before we begin sending.
+      # This needs to be tuned to account for most
+      # users not having a CT-17 for collision detect.
       def send_when_clear cmd_msg
-        # Look to make sure there isn't any data moving on the
-        # RS-422 bus before we begin sending.
-        loop do
-          @carrier_sense = false
-          # several bytes worth of time
-          sleep 1.0 / (@baud / 50)
-          break unless @carrier_sense
+        snooze = 0.05 + rand / 100 # 50-60ms
+        unless @carrier_sense == 0 and @last_message < Time.now - snooze
+          loop do
+            @carrier_sense = 0
+            sleep snooze
+            break if @carrier_sense == 0
+          end
         end
         @io.write cmd_msg
       end
@@ -176,7 +185,7 @@ class Radio
       def machine
         loop do
           c = @io.getbyte
-          @carrier_sense = true # Let's see if booleans are thread safe
+          @carrier_sense = 1
           @state = :WaitPreamble1 if c == 0xFC
           case @state
           when :WaitPreamble1
@@ -189,7 +198,7 @@ class Radio
             end
           when :WaitFmAdress
             if c == @device
-              @incoming = ''
+              @incoming = ''.force_encoding('binary')
               @state = :WaitCommand
             else
               @state = :WaitPreamble1
@@ -204,6 +213,8 @@ class Radio
           when :WaitFinal
             if c == 0xFD
               process @command, @incoming
+              @last_message = Time.now
+              @carrier_sense = 0
               @state = :WaitPreamble1
             elsif c > 0xFD
               @state = :WaitPreamble1
@@ -215,23 +226,27 @@ class Radio
       end
       
       def process type, data
-        @last_message = Time.now
         @semaphore.synchronize do
           queue = nil
           redos = []
           while !@queue.empty?
             queue, cmd_type, cmd_msg, cmd_time = @queue.pop
-            #TODO validate response length is correct or retry
-            break if cmd_type == type or OKNG.include? cmd_type
+            break if [0xFA,0xFB].include?(type) and @okng.include?(cmd_type)
+            break if cmd_type == type and @sizes[cmd_type] == data.size
             redos << [queue, cmd_type, cmd_msg, cmd_time]
             queue = nil
+            # Only skip one when handling a mangled response
+            break if cmd_type == type
           end
           redos.each do |cmd_queue, cmd_type, cmd_msg, cmd_time|
-            send_when_clear cmd_msg
-            @queue << [cmd_queue, cmd_type, cmd_msg, cmd_time]
+            requeue cmd_queue, cmd_type, cmd_msg, cmd_time
           end
-          return unless queue
+          return unless queue or type < 2
           case type
+          when 0x00 
+            if @sizes[3] == data.size
+              @lo = bcd_to_num(data).to_f/1000000
+            end
           when 0x03
             queue.push bcd_to_num(data).to_f/1000000
           when 0xFB # OK
@@ -243,6 +258,22 @@ class Radio
             p "Unsupported message: #{type} #{data.dump}"
           end
         end
+      end
+      
+      # Only the IC-735/IC-731 ever used 4byte frequencies.
+      # Other rigs may have a compatibility option.
+      # We depend on this heavily because the only data
+      # integrity check is the serial parity bit.
+      def setup compat
+        freq = compat ? 4 : 5
+        #TODO define all the commands
+        @sizes = { 
+          2 => freq*2+1,
+          3 => freq,
+          4 => 2
+        }
+        #TODO compute OK/NG from a complete @sizes
+        @okng = [5, 6]
       end
       
     end

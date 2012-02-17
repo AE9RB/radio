@@ -50,8 +50,8 @@ unless response.redirection? -%>
       </select>
       Baud:
       <select name="baud">
-        <% [300,1200,2400,9600,19200].each do |num| -%>
-          <option value="<%=h num %>" <%= 'selected="selected"' if num==9600 %>><%=h num %></option>
+        <% [300,1200,9600,19200].each do |num| -%>
+          <option value="<%=h num %>" <%= 'selected="selected"' if num==1200 %>><%=h num %></option>
         <% end -%>
       </select>
       Host:
