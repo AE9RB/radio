@@ -229,14 +229,16 @@ class Radio
         @semaphore.synchronize do
           queue = nil
           redos = []
-          while !@queue.empty?
-            queue, cmd_type, cmd_msg, cmd_time = @queue.pop
-            break if [0xFA,0xFB].include?(type) and @okng.include?(cmd_type)
-            break if cmd_type == type and @sizes[cmd_type] == data.size
-            redos << [queue, cmd_type, cmd_msg, cmd_time]
-            queue = nil
-            # Only skip one when handling a mangled response
-            break if cmd_type == type
+          if type > 1
+            while !@queue.empty?
+              queue, cmd_type, cmd_msg, cmd_time = @queue.pop
+              break if [0xFA,0xFB].include?(type) and @okng.include?(cmd_type)
+              break if cmd_type == type and @sizes[cmd_type] == data.size
+              redos << [queue, cmd_type, cmd_msg, cmd_time]
+              queue = nil
+              # Only skip one when handling a mangled response
+              break if cmd_type == type
+            end
           end
           redos.each do |cmd_queue, cmd_type, cmd_msg, cmd_time|
             requeue cmd_queue, cmd_type, cmd_msg, cmd_time
