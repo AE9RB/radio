@@ -18,10 +18,16 @@ class Radio
   class PSK31
     
     class Rx
+      
+      # 16 Hz bw LP filter for data recovery
+      FIR_BIT = Radio::Remez.new numtaps: 65, type: :bandpass,
+        bands: [0.0,0.03125,0.0625,0.5], desired: [1.0, 0.000001], weights: [1,286]
 
       def initialize frequency
         phase_inc = PI2 * frequency / 8000
-        @dec_filter = Filter.new mix:phase_inc, decimate:16, fir:FIR_DEC16
+        fir_500hz = Radio::Remez.new numtaps: 35, type: :bandpass,
+          bands: [0,0.0125,0.125,0.5], desired: [1.0, 0.000001], weights: [1,10]
+        @dec_filter = Filter.new mix:phase_inc, decimate:16, fir:fir_500hz
         @bit_filter = Filter.new fir:FIR_BIT
         @bit_detect = BitDetect.new
         @decoder = Decoder.new
