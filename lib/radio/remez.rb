@@ -49,17 +49,18 @@ class Radio
     
     def remez
       numtaps = @options[:numtaps].to_i
-      bands = @options[:bands].flatten
-      des = @options[:desired]
-      weight = @options[:weights]
+      bands = @options[:bands].flatten.collect(&:to_f)
+      des = @options[:desired].collect(&:to_f)
+      weight = @options[:weights].collect(&:to_f)
       type = @options[:type].to_sym
       griddensity = @options[:griddensity] || 16
       maxiterations = @options[:maxiterations] || 40
 
-      numband = des.size
+      raise 'bands not even size' unless bands.size.even?
+      numband = bands.size/2
+      raise 'desired.size mismatch' unless des.size == numband * 2
       raise 'weight.size mismatch' unless weight.size == numband
-      raise 'bands.size mismatch' unless bands.size == numband * 2
-      
+
       symmetry = (type == :bandpass) ? :positive : :negative
       
       @r = numtaps / 2
@@ -84,17 +85,16 @@ class Radio
       @ad = Array.new @r+1, 0.0
       @foundExt = Array.new @r*2, 0
       
-      delf = 0.5/(griddensity*@r)
-      if (symmetry == :negative) && (delf > bands[0])
-        bands[0] = delf 
-      end
+      lowf = delf = 0.5/(griddensity*@r)
+      lowf = bands[0] unless symmetry == :negative and delf > bands[0]
       j=0
       numband.times do |band|
         @grid[j] = bands[2*band]
-        lowf = bands[2*band]
+        lowf = bands[2*band] unless band == 0
         highf = bands[2*band + 1]
-        ((highf - lowf)/delf).round.times do |i|
-          @d[j] = des[band]
+        k = ((highf - lowf)/delf).round
+        k.times do |i|
+          @d[j] = des[2*band] + i*(des[2*band+1]-des[2*band])/(k-1)
           @w[j] = weight[band]
           @grid[j] = lowf
           lowf += delf
@@ -151,7 +151,9 @@ class Radio
       iter = 0
       while iter < maxiterations
         calc_params
-        calc_error
+        @gridsize.times do |i|
+          @e[i] = @w[i] * (@d[i] - compute_a(@grid[i]))
+        end
         search
         break if done?
         iter += 1
@@ -269,15 +271,8 @@ class Radio
     end
 
 
-    def calc_error
-      @gridsize.times do |i|
-        @e[i] = @w[i] * (@d[i] - compute_a(@grid[i]))
-      end
-    end
-    
-    
     def compute_a freq
-      denom = numer = 0;
+      denom = numer = 0
       xc = Math.cos(PI2 * freq)
       (0..@r).each do |i|
         c = xc - @x[i]
@@ -361,3 +356,4 @@ class Radio
    
   end
 end
+
