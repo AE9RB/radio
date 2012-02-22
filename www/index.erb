@@ -3,25 +3,67 @@
 <html>
   <head>
     <style type="text/css" media="screen">
-      body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
+      body{font:13px/1.231 arial,helvetica,clean,sans-serif;
+        *font-size:small;*font:x-small;background:#fff}
       select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
       img{display:block}
-      #waterfall{height: 75px; width: 95%; overflow-x:scroll; overflow-y: hidden; background:#000}
+      #waterfallxx{height: 75px; width: 95%; overflow-x:scroll; overflow-y: hidden; background:#000}
+      #main{
+        background:#D36B01;
+        color:#fff;
+        width:940px;
+        margin:auto;
+        -moz-border-radius: 10px;
+        border-radius: 10px;
+        padding: 3px 10px 10px 10px;
+      }
+      #title {
+        font-size:36px;
+        font-weight:bold;
+        text-align:center;
+      }
+      #main a:link, #title a:visited, #title a:link, #title a:link {
+        text-decoration:none; color:#fff
+      }
+      #waterfall{
+        height: 100px;
+        width: 940px; 
+        overflow-x: scroll;
+        overflow-y: hidden;
+        background:#000
+      }
+      #output{
+        background:#fcfcfc;
+        color:#000;
+        height:400px;
+        overflow-x: hidden;
+        overflow-y: scroll;
+      }
     </style>
     <script src='jquery-1.7.js'></script>
   </head>
   <body>
+    <div id="main">
+      <div id="title">
+        <a href="https://www.github.com/ham21/radio" target="_blank">
+          The Twenty-First Century Amateur Radio Project
+        </a>
+      </div>
 
-    <h2>
-      <a href="https://github.com/ham21/radio">Ham21</a>
-      - The Twenty-First Century Amateur Radio Project
-    </h2>
-    <p>SETUP: <a href="setup/input">Input</a> | <a href="setup/lo">LO</a></p>
-    
-    <%= render 'lo' %>
-    
-    <div id="waterfall">
+      <div id="waterfall">
+      </div>
+
+      <%= render 'lo' %>
+
+      <div id="output">
+      </div>
+
     </div>
+
+    <span style="text-align:center">
+      <p>SETUP: <a href="setup/input">Input</a> | <a href="setup/lo">LO</a></p>
+    </span>
+    
     
     <script type="text/javascript" charset="utf-8">
       var waterfallSeqNo = 0;

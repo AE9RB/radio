@@ -4,7 +4,7 @@
   @response.headers['Content-Type'] = 'text/plain'
 end -%>
 <form action="lo" id="freqForm">
-  <input type="text" name="freq" value="<%= $rig.lo %>" %>
+  <input type="text" name="freq" value="<%= $rig.lo %>" %> MHz
 </form>
 <script type="text/javascript">
   $("#freqForm").submit(function(event) {
