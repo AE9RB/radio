@@ -19,7 +19,7 @@ class Radio
     class CoreAudio
       
       JITTER = 0.1 #seconds of window for output timing jitter
-      BUFFER = 0.8 #seconds of io data buffer
+      BUFFER = 0.5 #seconds of io data buffer
 
       begin
         # Older versions have a one-off bug in audio output
@@ -60,8 +60,6 @@ class Radio
       
       attr_reader :input_channels, :output_channels
 
-      # id is the key from the sources hash.
-      # rate is the desired hardware rate.  do not decimate/interpolate here.
       def initialize options 
         @device = ::CoreAudio::AudioDevice.new options[:id].to_i
         @input_channels = @output_channels = 0
@@ -96,25 +94,29 @@ class Radio
       def out data
         resetting = false
         if @output_buf.dropped_frame > 0
-          p 'sleeping because frame dropped'
+          p 'sleeping because frame dropped' #TODO logger
           resetting = true
           sleep JITTER
         end
-        jit = Time.now + JITTER
+        out = nil
         if @drop_data
-          qty = 
-          @drop_data = nil
           if @drop_data < data.size
-            @output_buf << data[@drop_data..-1] * 32767
+            out = data[@drop_data..-1] * 32767
           end
           @drop_data -= data.size
           @drop_data = nil if @drop_data <= 0
         else
-          @output_buf << data * 32767
+          out = data * 32767
         end
-        if Time.now > jit
-          p 'dropping some data'
-          @drop_data = rate * JITTER
+        if out
+          # CoreAudio gem will block when the buffer is full
+          # We'll discard a jitter worth of data when this happens
+          jit = Time.now + 0.01
+          @output_buf << out
+          if Time.now > jit
+            p 'dropping some data' #TODO logger
+            @drop_data = rate * JITTER
+          end
         end
         @output_buf.reset_dropped_frame if resetting
       end

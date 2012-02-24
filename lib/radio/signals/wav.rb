@@ -36,7 +36,7 @@ class Radio
         
         def in samples
           sample_size = @channels * (@bit_sample/8)
-          @time += 1.0/(rate/samples)
+          @time += 1.0/(rate.to_f/samples)
           sleep [0,@time-Time.now].max
           while @data.reduce(0){|a,b|a+b.size} < samples * sample_size
             @data.push next_data
