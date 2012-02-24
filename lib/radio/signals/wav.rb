@@ -15,31 +15,33 @@
 
 
 class Radio
-  module Input
+  module Signal
     class File
       class WAV
         
         attr_reader :rate
         
-        def initialize id, rate, channel_i, channel_q
-          @file = ::File.new id
+        def initialize options
+          @file = ::File.new options[:id]
           #TODO validate header instead?
           @file.read 12 # discard header
-          @rate = rate
-          @channel_i = channel_i
-          @channel_q = channel_q
+          @rate = options[:rate].to_i
+          if input = options[:input]
+            @channel_i = input[0]
+            @channel_q = input[1]
+          end
           @data = [next_data]
           @time = Time.now
         end
         
-        def call samples
+        def in samples
           sample_size = @channels * (@bit_sample/8)
           @time += 1.0/(rate/samples)
           sleep [0,@time-Time.now].max
           while @data.reduce(0){|a,b|a+b.size} < samples * sample_size
             @data.push next_data
           end
-          if channels > 1
+          if input_channels > 1
             out = NArray.scomplex samples
           else
             out = NArray.sfloat samples
@@ -59,9 +61,13 @@ class Radio
           out
         end
         
-        def channels
+        def input_channels
           return 2 if @channel_q and @channels > 1
           1
+        end
+        
+        def output_channels
+          0
         end
         
         def stop
@@ -78,9 +84,9 @@ class Radio
           else
             raise "Unsupported sample size: #{@bit_sample}" 
           end
-          return out if channels == 1 and @channels == 1
+          return out if input_channels == 1 and @channels == 1
           out.reshape! @channels, out.size/@channels
-          if channels == 1
+          if input_channels == 1
             out[@channel_i,true]
           else
             c_out = NArray.scomplex out[0,true].size

@@ -1,12 +1,12 @@
 <%
 if post?
   $rig ||= Radio::Rig.new
-  channel_i, channel_q = case params['channel']
+  device = case params['channel']
   when 'iq' then [0,1]
   when 'qi' then [1,0]
-  else [0,nil]
+  else 0
   end
-  $rig.rx = Radio::Input.new params['type'], params['id'], params['rate'].to_i, channel_i, channel_q
+  $rig.rx = Radio::Signal.new type:params['type'], id:params['id'], rate:params['rate'].to_i, input:device
   response.redirect '/'
 end 
 unless response.redirection? -%>
@@ -20,8 +20,8 @@ unless response.redirection? -%>
   </head>
   <body>
     
-    <h2>Input Sources</h2>
-    <% if (input_sources = Radio::Input.sources).empty? -%>
+    <h2>Radio Input Sources</h2>
+    <% if (input_sources = Radio::Signal.devices.delete_if{|k,v|v[:input]==0}).empty? -%>
       No input sources found.
     <% else -%>
       <dl>
@@ -40,10 +40,10 @@ unless response.redirection? -%>
               <% end -%>
             </dd>
             <dd>
-              <% if opts[:channels] == 1 or input_type != :File %>
+              <% if opts[:input] == 1 or input_type != :File %>
                 <input type="radio" name="channel" value="i" checked="checked" />LPCM
               <% end -%>
-              <% if opts[:channels] == 2 %>
+              <% if opts[:input] == 2 %>
                 <input type="radio" name="channel" value="iq" />I/Q
                 <input type="radio" name="channel" value="qi" checked="checked" />Q/I
               <% end -%>
@@ -55,7 +55,7 @@ unless response.redirection? -%>
     <% end -%>
 
     <h2>Driver Status</h2>
-    <% Radio::Input.status.each do |k, v| -%>
+    <% Radio::Signal.status.each do |k, v| -%>
       <%=h k %>: <%=h v %> <br />
     <% end -%>
 

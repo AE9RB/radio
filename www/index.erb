@@ -1,4 +1,4 @@
-<% if !$rig; response.redirect 'setup/input'; else
+<% if !$rig; response.redirect 'setup/rx'; else
 -%><!DOCTYPE html>
 <html>
   <head>
@@ -60,9 +60,9 @@
 
     </div>
 
-    <span style="text-align:center">
-      <p>SETUP: <a href="setup/input">Input</a> | <a href="setup/lo">LO</a></p>
-    </span>
+    <p style="text-align:center">
+        SETUP: <a href="setup/rx">RX</a> | <a href="setup/af">AF</a> | <a href="setup/lo">LO</a>
+    </p>
     
     
     <script type="text/javascript" charset="utf-8">

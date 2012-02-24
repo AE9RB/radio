@@ -15,36 +15,37 @@
 
 
 class Radio
-  module Input
+  module Signal
     class File
       
       def self.status
-        "Loaded: %d files found" % sources.size
+        "Loaded: %d files found" % devices.size
       end
       
-      def self.sources
+      def self.devices
         result = {}
         files = Dir.glob ::File.expand_path '../../../../test/wav/**/*.wav', __FILE__
         files.each do |file|
           begin
-            f = new file, 0, 0, 1
+            f = new id:file, input:[0,1]
           rescue Exception => e
             next
           end
           result[file] = {
             name: file,
             rates: [f.rate],
-            channels: f.channels
+            input: f.input_channels,
+            output: 0
           }
         end
         result
       end
       
       # You can load any file, not just the ones in sources.
-      def initialize id, rate, channel_i, channel_q
+      def initialize options
         self.class.constants.each do |x|
           klass = eval x.to_s
-          @reader = klass.new id, rate, channel_i, channel_q rescue nil
+          @reader = klass.new options
           break if @reader
         end
         raise 'Unknown format' unless @reader
@@ -57,4 +58,3 @@ class Radio
     end
   end
 end
-

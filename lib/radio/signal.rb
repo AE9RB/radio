@@ -14,7 +14,7 @@
 
 
 class Radio
-  module Input
+  module Signal
     
     # Keep this namespace clean because we search inputs by
     # finding the classes from Radio::Inputs.constants.
@@ -23,17 +23,17 @@ class Radio
     # dependencies. This allows us to present a basic debug screen.
     def self.status
       s = {}
-      Radio::Input.constants.collect do |input_name|
+      constants.collect do |input_name|
         s[input_name] = eval(input_name.to_s).status
       end
       s
     end
     
     # Consolidate all sources from all inputs and add the class name to the keys.
-    def self.sources
+    def self.devices
       s = {}
-      Radio::Input.constants.each do |type|
-        eval(type.to_s).sources.each do |id, source|
+      constants.each do |type|
+        eval(type.to_s).devices.each do |id, source|
           s[[type, id]] = source
         end
       end
@@ -41,20 +41,24 @@ class Radio
     end
     
     # You can't new a module so this switches into the specific class.
-    def self.new type, id, rate, channel_i, channel_q=nil
-      # defend the eval
-      unless Radio::Input.constants.include? type.to_sym
+    def self.new options
+      type = options.delete :type
+      options[:output] = [options[:output]].flatten if options[:output]
+      options[:input] = [options[:input]].flatten if options[:input]
+      unless constants.include? type.to_sym
         raise NameError, "uninitialized constant Radio::Input::#{type}"
       end
-      input = eval(type.to_s).new id, rate, channel_i, channel_q
+      device = eval(type.to_s).new options
       # Ask for and discard the first sample to report errors here
       begin
-        input.call 1
+        device.out NArray.scomplex(1) if device.output_channels == 2
+        device.out NArray.sfloat(1) if device.output_channels == 1
+        device.in 1 if device.input_channels > 0
       rescue Exception => e
-        input.stop
+        device.stop
         raise e
       end
-      input
+      device
     end
     
   end

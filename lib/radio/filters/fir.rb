@@ -26,7 +26,7 @@ class Radio
         @fir_pos = 0
         @fir_size = coef.size
         @fir_coef = NArray.to_na coef.reverse*2
-        @fir_buf = NArray.complex @fir_size
+        @fir_buf = NArray.scomplex @fir_size
         super
       end
     end

@@ -20,13 +20,13 @@ end
 
 
 class Radio
-  module Input
+  module Signal
 
     class ALSA
       
       def self.status
         if defined? ::ALSA::PCM
-          return "Loaded: %d input devices" % sources.count
+          return "Loaded: %d devices" % devices.count
         end
         unless defined? @is_linux
           @is_linux = (`uname`.strip == 'Linux') rescue false
@@ -42,7 +42,7 @@ class Radio
       CP_REGEX = /:\s*(capture|playback)\s*(\d+)\s*$/
       CD_REGEX = /^(\d+)-(\d+):\s*/
       
-      def self.sources
+      def self.devices
         return {} unless defined? ::ALSA::PCM
         # Funky read to get around old Linux bug
         # http://kerneltrap.org/mailarchive/git-commits-head/2009/4/17/5510664
@@ -63,31 +63,37 @@ class Radio
             result[device] = {
               name: line,
               rates: [params.sample_rate],
-              channels: params.channels
+              input: params.channels,
+              output: 0
             }
           end rescue nil
         end
         result
       end
       
-      def initialize id, rate, channel_i, channel_q
+      def initialize options
         @stream = ::ALSA::PCM::Capture.new
-        @stream.open id
-        @channel_i = channel_i
-        @channel_q = channel_q
+        @stream.open options[:id]
+        if input = options[:input]
+          @channel_i = input[0]
+          @channel_q = input[1]
+        end
       end
       
       def rate
         @stream.hardware_parameters.sample_rate
       end
       
-      def channels
+      def input_channels
         return 2 if @channel_q and @stream.hardware_parameters.channels > 1
         1
       end
       
-      def call samples
-        
+      def output_channels
+        0
+      end
+      
+      def in samples
         out=nil
         buf_size = @stream.hw_params.buffer_size_for(samples)
         FFI::MemoryPointer.new(:char, buf_size) do |buffer|
@@ -96,12 +102,13 @@ class Radio
           NArray.to_na(out, NArray::SINT).to_f.div! 32767
         end
         stream_channels = @stream.hardware_parameters.channels
-        out = case buf_size / samples / stream_channels
+        sample_size = buf_size / samples / stream_channels
+        out = case sample_size
         when 1 then NArray.to_na(out,NArray::BYTE).to_f.collect!{|v|(v-128)/127}
         when 2 then NArray.to_na(out,NArray::SINT).to_f.div! 32767
         # when 3 then NArray.to_na(d,NArray::???).to_f.collect!{|v|(v-8388608)/8388607}
         else
-          raise "Unsupported sample size: #{@bit_sample}" 
+          raise "Unsupported sample size: #{@sample_size}" 
         end
         return out if channels == 1 and stream_channels == 1
         out.reshape! stream_channels, out.size/stream_channels
@@ -122,14 +129,4 @@ class Radio
     end
     
   end
-end
-
-
-if $0 == __FILE__
-  
-  require 'narray'
-  a = Radio::Input::ALSA
-  i = a.new 'default', 44100, 0, nil
-  p i.call 8
-  
 end

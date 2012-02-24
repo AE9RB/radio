@@ -1,0 +1,64 @@
+<%
+if post?
+  $rig ||= Radio::Rig.new
+  device = case params['channel']
+  when 'iq' then [0,1]
+  when 'qi' then [1,0]
+  else 0
+  end
+  $af = {type:params['type'], id:params['id'], rate:params['rate'].to_i, output:device}
+  response.redirect '/'
+end 
+unless response.redirection? -%>
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css" media="screen">
+      body{font:13px/1.231 arial,helvetica,clean,sans-serif;*font-size:small;*font:x-small;}
+      select,input,button,textarea,button{font:99% arial,helvetica,clean,sans-serif;}
+    </style>
+  </head>
+  <body>
+    
+    <h2>Audio Output Sources</h2>
+    <% if (input_sources = Radio::Signal.devices.delete_if{|k,v|v[:output]==0}).empty? -%>
+      No input sources found.
+    <% else -%>
+      <dl>
+        <% input_sources.each do |k, opts| -%>
+          <form action='?' method="post">
+            <% input_type, input_id = k -%>
+            <dt>
+              <input type="submit" value="Select"%>
+              <input type="hidden" name="type" value="<%=h input_type %>" %>
+              <input type="hidden" name="id" value="<%=h input_id %>" %>
+              <%=h input_type %>: <%=h opts[:name] %> 
+            </dt>
+            <dd>
+              <% opts[:rates].reverse.each_with_index do |rate, index| %>
+                <input type="radio" name="rate" value="<%=h rate %>" <%= "checked=checked" if index==0 %> /><%=h rate %>
+              <% end -%>
+            </dd>
+            <dd>
+              <% if opts[:input] == 1 or input_type != :File %>
+                <input type="radio" name="channel" value="i" checked="checked" />LPCM
+              <% end -%>
+              <% if opts[:input] == 2 %>
+                <input type="radio" name="channel" value="iq" />I/Q
+                <input type="radio" name="channel" value="qi" checked="checked" />Q/I
+              <% end -%>
+            </dd>
+          </form>
+          <br />
+        <% end -%>
+      </dl>
+    <% end -%>
+
+    <h2>Driver Status</h2>
+    <% Radio::Signal.status.each do |k, v| -%>
+      <%=h k %>: <%=h v %> <br />
+    <% end -%>
+
+  </body>
+</html>
+<% end -%>

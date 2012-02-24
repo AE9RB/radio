@@ -48,7 +48,7 @@ class Radio
       def rx_thread
         qty_samples = @rx.rate / 125 * 4
         loop do
-          samples = @rx.call qty_samples
+          samples = @rx.in qty_samples
           spectrum_collect samples
         end
       end
