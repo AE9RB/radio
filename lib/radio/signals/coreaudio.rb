@@ -19,7 +19,7 @@ class Radio
     class CoreAudio
       
       JITTER = 0.1 #seconds of window for output timing jitter
-      BUFFER = 0.5 #seconds of io data buffer
+      BUFFER = 0.5 #seconds of input buffer
 
       begin
         # Older versions have a one-off bug in audio output
@@ -71,7 +71,7 @@ class Radio
         end
         if @output = options[:output]
           @output_channels = @output.size
-          buffer_size = @output_channels * rate * BUFFER
+          buffer_size = @output_channels * rate * JITTER * 2
           @output_buf = @device.output_buffer buffer_size
           @output_buf.start
         end

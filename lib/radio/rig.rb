@@ -20,10 +20,25 @@ class Radio
     include Spectrum
     include Rx
     include LO
+    include SSB
   
     def initialize
       @semaphore = Mutex.new
+      @listeners = {}
+      @listeners_mutex = Mutex.new
       super
+    end
+    
+    def register queue
+      @listeners_mutex.synchronize do
+        @listeners[queue] = true
+      end
+    end
+
+    def deregister queue
+      @listeners_mutex.synchronize do
+        @listeners.delete queue
+      end
     end
     
     def rate
@@ -39,6 +54,14 @@ class Radio
         return @rx.channels == 2 if @rx
         return @tx.channels == 2 if @tx
         return false
+      end
+    end
+    
+    private
+    
+    def distribute_to_listeners data
+      @listeners_mutex.synchronize do
+        @listeners.each {|k,v| k << data}
       end
     end
 

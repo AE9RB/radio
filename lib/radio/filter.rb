@@ -19,6 +19,10 @@ class Radio
   # with an optimized version from a module.  The type of data
   # and initializer options determine the module name to load.
   class Filter
+    
+    TYPES = %w{
+      mix interpolate decimate fir
+    }.collect(&:to_sym).freeze
 
     # Filters are built with mixing first and fir last.
     # Chain multiple filters to get other effects.
@@ -46,9 +50,9 @@ class Radio
       else
         raise "Unknown data type: #{first.class}"
       end
-      mod_name += 'Mix' if @options[:mix]
-      mod_name += 'Decimate' if @options[:decimate]
-      mod_name += 'Fir' if @options[:fir]
+      TYPES.each do |type|
+        mod_name += type.to_s.capitalize if @options[type]
+      end
       this_call = method :call
       extend eval mod_name
       if this_call == method(:call)

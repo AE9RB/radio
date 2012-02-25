@@ -15,24 +15,60 @@
 
 class Radio
   class Filter
-    
-    module FirSetup
-      # It's ok that not all filter patterns use all instance variables.
+
+    module SetupFirFloat
       def setup data
-        @mix_phase = 0.0
-        @mix_phase_inc = @options[:mix]
-        @dec_pos = @dec_size = @options[:decimate]
         coef = @options[:fir]
         @fir_pos = 0
         @fir_size = coef.size
-        @fir_coef = NArray.to_na coef.reverse*2
+        @fir_coef = NArray.sfloat @fir_size * 2 
+        if Complex === coef[0]
+          @fir_coef = coef.real*2
+        else
+          @fir_coef = coef*2
+        end
+        @fir_buf = NArray.float @fir_size
+        super
+      end
+    end
+    
+    module SetupFirComplex
+      def setup data
+        coef = @options[:fir]
+        @fir_pos = 0
+        @fir_size = coef.size
+        if Complex === coef[0]
+          @fir_coef = NArray.scomplex @fir_size * 2
+        else
+          @fir_coef = NArray.sfloat @fir_size * 2
+        end
+        @fir_coef = coef*2
         @fir_buf = NArray.scomplex @fir_size
+        super
+      end
+    end
+    
+    # do not include before fir setup
+    module SetupInterpolateDecimate
+      def setup data
+        @dec_pos = @dec_size = @options[:decimate]
+        @interpolate = @options[:interpolate]
+        super
+      end
+    end
+    
+    module SetupMix
+      def setup data
+        @mix_phase = 0.0
+        @mix_phase_inc = @options[:mix]
         super
       end
     end
 
     module FloatEachMixDecimateFir
-      include FirSetup
+      include SetupFirComplex
+      include SetupMix
+      include SetupInterpolateDecimate
       def call data
         data.each do |energy|
           @fir_pos = @fir_size if @fir_pos == 0
@@ -51,13 +87,33 @@ class Radio
     end
     
     module ComplexFir
-      include FirSetup
+      include SetupFirComplex
       def call data
         @fir_pos = @fir_size if @fir_pos == 0
         @fir_pos -= 1
         @fir_buf[@fir_pos] = data
         iq = @fir_buf.mul_accum @fir_coef[@fir_size-@fir_pos..-1-@fir_pos],0
         yield iq[0]
+      end
+    end
+    
+    module FloatEachInterpolateFir
+      include SetupFirFloat
+      include SetupInterpolateDecimate
+      #TODO reshape interpolate so we aren't mul_accum all those 0*0
+      def call data
+        out = NArray.float @interpolate, data.size
+        out[0,true] = data
+        @interpolate.times {|i| out[i,true] = data}
+        out.reshape!(@interpolate * data.size)
+        out.collect! do |value|
+          @fir_pos = @fir_size if @fir_pos == 0
+          @fir_pos -= 1
+          @fir_buf[@fir_pos] = value
+          iq = @fir_buf.mul_accum @fir_coef[@fir_size-@fir_pos..-1-@fir_pos],0
+          iq[0]
+        end
+        yield out
       end
     end
     

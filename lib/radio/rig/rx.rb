@@ -25,7 +25,7 @@ class Radio
       end
       
       def rx= input
-        old_rx_thread = new_thread = false
+        old_rx_thread = false
         @semaphore.synchronize do
           if @rx
             @rx.stop
@@ -46,10 +46,15 @@ class Radio
       # We want to work with powers of two but sample rates
       # are multiples of 8000. Let's use a lag of 32ms or 31.25 baud.
       def rx_thread
-        qty_samples = @rx.rate / 125 * 4
-        loop do
-          samples = @rx.in qty_samples
-          spectrum_collect samples
+        begin
+          qty_samples = @rx.rate / 125 * 4
+          loop do
+            distribute_to_listeners @rx.in qty_samples
+          end
+        rescue Exception => e
+          p "ERROR #{e.message}: #{e.backtrace.first}" #TODO logger
+          # This will be picked up by next call to rx=
+          raise e
         end
       end
     

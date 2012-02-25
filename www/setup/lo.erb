@@ -3,12 +3,12 @@ if post?
   $rig.lo = case params['type']
   when 'softrock' then Radio::Controls::Si570AVR.new
   when 'civ'
-    Radio::Controls::CIV.new {
+    Radio::Controls::CIV.new({
       port:params['port'],
       baud:params['baud'],
       host:params['host'],
       device:params['device'],
-    }
+    })
   else Radio::Controls::Null.new
   end
   response.redirect '/'
