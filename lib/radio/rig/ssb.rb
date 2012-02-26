@@ -29,6 +29,7 @@ class Radio
       
       def af= output
         old_af_thread = false
+        source_rate = self.rate
         @semaphore.synchronize do
           old_rate = 0
           if @af
@@ -38,7 +39,7 @@ class Radio
             old_af_thread.kill
           end
           @af = output
-          @af_filter = af_generate_filter unless @af and old_rate == @af.rate
+          @af_filter = af_generate_filter(source_rate) unless @af and old_rate == @af.rate
           @af_thread = Thread.new &method(:af_thread)
         end
         old_af_thread.join if old_af_thread
@@ -62,17 +63,19 @@ class Radio
         end
       end
       
-      def af_generate_filter
+      def af_generate_filter(source_rate)
         return nil unless @af
         bands = [0,0,0,0.5]
         bands[1] = 3000.0 / @af.rate
         bands[2] = 3800.0 / @af.rate
-        taps = kaiser_estimate :odd, 0.2, 0.2, bands[2].to_f-bands[1]
-        p taps
+        taps = kaiser_estimate :odd, 0.05, 0.05, bands[2].to_f-bands[1]
         fir = Remez.new numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [1,100]
-        #TODO interp maths
-        Filter.new fir:fir, interpolate:6
+        interpolate = @af.rate.to_f / source_rate
+        unless interpolate == interpolate.floor and interpolate > 0
+          raise "unable to convert #{rate} to #{@af.rate}"
+        end
+        Filter.new fir:fir, interpolate:interpolate
       end
       
       #TODO make a Util module and include remez with this
