@@ -16,21 +16,18 @@
 class Radio
   
   class Rig
-    
+
     module SSB
       
       def initialize
-        @af = @af_thread = nil
-        register @af_queue = Queue.new
-        # start a null thread to consume queue
-        self.af = nil 
+        @ssb_semaphore = Mutex.new
         super
       end
       
       def af= output
         old_af_thread = false
-        source_rate = self.rate
-        @semaphore.synchronize do
+        @ssb_semaphore.synchronize do
+          deregister @af_queue if @af_queue
           old_rate = 0
           if @af
             old_rate = @af.rate
@@ -39,7 +36,8 @@ class Radio
             old_af_thread.kill
           end
           @af = output
-          @af_filter = af_generate_filter(source_rate) unless @af and old_rate == @af.rate
+          @af_filter = af_generate_filter unless @af and old_rate == @af.rate
+          register @af_queue = Queue.new
           @af_thread = Thread.new &method(:af_thread)
         end
         old_af_thread.join if old_af_thread
@@ -51,7 +49,7 @@ class Radio
         begin
           loop do
             in_data = @af_queue.pop
-            @semaphore.synchronize do
+            @ssb_semaphore.synchronize do
               if @af_filter and @af
                 @af_filter.call(in_data) {|data| @af.out data}
               end
@@ -63,29 +61,22 @@ class Radio
         end
       end
       
-      def af_generate_filter(source_rate)
+      def af_generate_filter
         return nil unless @af
-        bands = [0,0,0,0.5]
+        bands = [0,nil,nil,0.5]
         bands[1] = 3000.0 / @af.rate
         bands[2] = 3800.0 / @af.rate
-        taps = kaiser_estimate :odd, 0.05, 0.05, bands[2].to_f-bands[1]
-        fir = Remez.new numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,100]
-        interpolate = @af.rate.to_f / source_rate
+        taps = kaiser_estimate passband:0.05, stopband:0.05, transition:bands[2]-bands[1]
+        fir = remez numtaps: taps, type: :bandpass,
+          bands: bands, desired: [1,1,0,0], weights: [50,1]
+        interpolate = @af.rate.to_f / self.rate
         unless interpolate == interpolate.floor and interpolate > 0
           raise "unable to convert #{rate} to #{@af.rate}"
         end
-        Filter.new fir:fir, interpolate:interpolate
-      end
-      
-      #TODO make a Util module and include remez with this
-      def kaiser_estimate type, passband_ripple, stopband_ripple, transition_width
-        numer = -20.0 * Math.log10(passband_ripple.to_f*stopband_ripple) - 13
-        denum = 14.6 * transition_width
-        taps = (numer/denum).round
-        taps +=1 if type == :odd and taps.even?
-        taps +=1 if type == :even and taps.odd?
-        taps
+        filter = Filter.new fir:fir, interpolate:interpolate
+        #TODO need a nicer pattern to force JIT compile
+        filter.call(self.iq? ? NArray.scomplex(1) : NArray.sfloat(1)) {}
+        filter
       end
       
     end

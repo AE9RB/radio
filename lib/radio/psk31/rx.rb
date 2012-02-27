@@ -19,13 +19,15 @@ class Radio
     
     class Rx
       
+      include Utils
+  
       # 16 Hz bw LP filter for data recovery
       FIR_BIT = Remez.new numtaps: 65, type: :bandpass,
         bands: [0.0,0.03125,0.0625,0.5], desired: [1,1,0,0], weights: [1,286]
 
       def initialize frequency
         phase_inc = PI2 * frequency / 8000
-        fir_500hz = Remez.new numtaps: 35, type: :bandpass,
+        fir_500hz = remez numtaps: 35, type: :bandpass,
           bands: [0,0.0125,0.125,0.5], desired: [1,1,0,0], weights: [1,10]
         @dec_filter = Filter.new mix:phase_inc, decimate:16, fir:fir_500hz
         @bit_filter = Filter.new fir:FIR_BIT

@@ -20,6 +20,7 @@ require 'serialport'
 
 # Suffer load order here
 %w{
+  radio/utils/*.rb
   radio/rig/*.rb
   radio/*.rb
   radio/**/*.rb
@@ -30,9 +31,6 @@ require 'serialport'
 end
 
 class Radio
-
-  PI = Math::PI.freeze
-  PI2 = (8.0 * Math.atan(1.0)).freeze
   
   def self.start
     

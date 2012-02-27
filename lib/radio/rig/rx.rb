@@ -18,7 +18,7 @@ class Radio
   class Rig
     
     module Rx
-  
+      
       def initialize
         @rx = @rx_thread = nil
         super

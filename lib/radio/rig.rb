@@ -17,6 +17,7 @@ class Radio
 
   class Rig
     
+    include Utils
     include Spectrum
     include Rx
     include LO
@@ -44,15 +45,13 @@ class Radio
     def rate
       @semaphore.synchronize do
         return @rx.rate if @rx
-        return @tx.rate if @tx
         return 0
       end
     end
     
     def iq?
       @semaphore.synchronize do
-        return @rx.channels == 2 if @rx
-        return @tx.channels == 2 if @tx
+        return @rx.input_channels == 2 if @rx
         return false
       end
     end
@@ -61,7 +60,7 @@ class Radio
     
     def distribute_to_listeners data
       @listeners_mutex.synchronize do
-        @listeners.each {|k,v| k << data}
+        @listeners.each {|k,v| k << data }
       end
     end
 
