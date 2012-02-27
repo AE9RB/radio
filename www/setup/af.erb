@@ -1,12 +1,7 @@
 <%
 if post?
   $rig ||= Radio::Rig.new
-  device = case params['channel']
-  when 'iq' then [0,1]
-  when 'qi' then [1,0]
-  else 0
-  end
-  $af = {type:params['type'], id:params['id'], rate:params['rate'].to_i, output:device}
+  $af = {type:params['type'], id:params['id'], rate:params['rate'].to_i, output:true}
   response.redirect '/'
 end 
 unless response.redirection? -%>
@@ -37,15 +32,6 @@ unless response.redirection? -%>
             <dd>
               <% opts[:rates].reverse.each_with_index do |rate, index| %>
                 <input type="radio" name="rate" value="<%=h rate %>" <%= "checked=checked" if index==0 %> /><%=h rate %>
-              <% end -%>
-            </dd>
-            <dd>
-              <% if opts[:input] == 1 or input_type != :File %>
-                <input type="radio" name="channel" value="i" checked="checked" />LPCM
-              <% end -%>
-              <% if opts[:input] == 2 %>
-                <input type="radio" name="channel" value="iq" />I/Q
-                <input type="radio" name="channel" value="qi" checked="checked" />Q/I
               <% end -%>
             </dd>
           </form>

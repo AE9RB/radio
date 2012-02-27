@@ -23,7 +23,7 @@ class Radio
         @options.delete(:decimate) if @options[:decimate] == 1.0
         coef = @options[:fir]
         # split array for when we interpolate and decimate in one step
-        if Array == coef
+        if @options[:interpolate] and @options[:decimate]
           @interpolation_fir_coef = coef[0]
           @decimation_fir_coef = coef[1]
         elsif @options[:interpolate]
@@ -77,7 +77,8 @@ class Radio
         else
           new_coef = NArray.sfloat coef.size * 2
         end
-        new_coef[true] = coef * 2
+        new_coef[0...coef.size] = coef.to_a
+        new_coef[coef.size..-1] = coef.to_a
         new_coef
       end
 
@@ -85,25 +86,66 @@ class Radio
 
 
     module SetupMix
+      # This trick is slightly faster than cos/sin lookups.
+      # @mix_phase *= @mix_phase_inc
+      # Take out the rounding errors once in a while with:
+      # @mix_phase /= @mix_phase.abs
       def setup data
-        @mix_phase = 0.0
-        @mix_phase_inc = @options[:mix]
+        @mix_phase = Complex(1.0,1.0)/Complex(1.0,1.0).abs
+        @mix_phase_inc = Math.exp(Complex(0, PI2 * @options[:mix]))
         super
       end
     end
+    
+    module ComplexEachMixDecimateFir
+      include SetupFir
+      include SetupMix
 
+      #TODO better buffering et al
+      def setup x
+        @b = NArray.scomplex 256
+        @bx = 0
+        super
+      end
+      def call data
+        @mix_phase /= @mix_phase.abs
+        data.each do |sample|
+          @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
+          @decimation_fir_pos -= 1
+
+          @mix_phase *= @mix_phase_inc
+          @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
+          
+          @decimation_pos -= 1
+          if @decimation_pos <= 0
+            @decimation_pos += @decimation_size
+            f_start = @decimation_fir_size-@decimation_fir_pos
+            f_end = -1-@decimation_fir_pos
+            iq = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+            
+            @bx += 1
+            if @bx == @b.size
+              yield @b
+              @bx = 0
+            end
+            @b[@bx] = iq
+          end
+        end
+      end
+    end
+    
     module FloatEachMixDecimateFir
       include SetupFir
       include SetupMix
       def call data
-        data.each do |energy|
+        @mix_phase /= @mix_phase.abs
+        data.each do |sample|
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
-          @decimation_buf_c[@decimation_fir_pos] = Complex(
-            Math.cos(@mix_phase)*energy, Math.sin(@mix_phase)*energy
-          )
-          @mix_phase += @mix_phase_inc
-          @mix_phase -= PI2 if @mix_phase >= PI2
+          
+          @mix_phase *= @mix_phase_inc
+          @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
+          
           @decimation_pos -= 1
           if @decimation_pos <= 0
             @decimation_pos += @decimation_size
