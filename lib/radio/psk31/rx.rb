@@ -37,11 +37,13 @@ class Radio
       
       def call data
         decoded = ''
-        @dec_filter.call data do |iq|
-          @bit_filter.call iq do |iq|
-            @bit_detect.call iq do |iq|
-              @decoder.call iq do |symbol|
-                decoded += symbol
+        @dec_filter.call data do |data|
+          @bit_filter.call data do |data|
+            data.each do |iq|
+              @bit_detect.call iq do |iq|
+                @decoder.call iq do |symbol|
+                  decoded += symbol
+                end
               end
             end
           end

@@ -34,19 +34,10 @@ class Radio
 
     # The first call with data is when we decide which module is optimal.
     def call data, &block
-      mod_name = 'Each'
-      if Enumerable === data
-        first = data.first
-      elsif NArray === data
-        first = data[0]
-      else
-        first = data
-        mod_name = ''
-      end
-      if Complex === first
-        mod_name = 'Complex' + mod_name
-      elsif Float === first
-        mod_name = 'Float' + mod_name
+      if Complex === data[0]
+        mod_name = 'Complex'
+      elsif Float === data[0]
+        mod_name = 'Float'
       else
         raise "Unknown data type: #{first.class}"
       end

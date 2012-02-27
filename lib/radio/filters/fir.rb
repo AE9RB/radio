@@ -17,6 +17,7 @@ class Radio
   class Filter
 
     module SetupFir
+      private
       def setup data
         # ensure we don't accidentally use slower ops for 1:1
         @options.delete(:interpolate) if @options[:interpolate] == 1
@@ -61,7 +62,7 @@ class Radio
           @decimation_buf_c = NArray.scomplex @decimation_fir_size
           @decimation_fir_pos = 0
           @decimation_size = @options[:decimate]
-          if Float == @decimation_size
+          if Float === @decimation_size
             @decimation_pos = 0.0
           else
             @decimation_pos = 0
@@ -69,7 +70,7 @@ class Radio
         end
         super
       end
-
+      
       def setup_build_coef coef
         return nil unless coef
         if Complex === coef[0]
@@ -86,6 +87,7 @@ class Radio
 
 
     module SetupMix
+      private
       # This trick is slightly faster than cos/sin lookups.
       # @mix_phase *= @mix_phase_inc
       # Take out the rounding errors once in a while with:
@@ -97,79 +99,78 @@ class Radio
       end
     end
     
-    module ComplexEachMixDecimateFir
+    module ComplexMixDecimateFir
       include SetupFir
       include SetupMix
-
-      #TODO better buffering et al
-      def setup x
-        @b = NArray.scomplex 256
-        @bx = 0
-        super
-      end
       def call data
         @mix_phase /= @mix_phase.abs
+        out_size = data.size / @decimation_size
+        out_size += 1 if @decimation_pos <= (data.size % @decimation_size)
+        out = NArray.scomplex out_size
+        out_count = 0
         data.each do |sample|
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
-
           @mix_phase *= @mix_phase_inc
           @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
-          
           @decimation_pos -= 1
           if @decimation_pos <= 0
             @decimation_pos += @decimation_size
             f_start = @decimation_fir_size-@decimation_fir_pos
             f_end = -1-@decimation_fir_pos
-            iq = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
-            
-            @bx += 1
-            if @bx == @b.size
-              yield @b
-              @bx = 0
-            end
-            @b[@bx] = iq
+            out[out_count] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+            out_count += 1
           end
         end
+        yield out
       end
     end
     
-    module FloatEachMixDecimateFir
+    module FloatMixDecimateFir
       include SetupFir
       include SetupMix
       def call data
         @mix_phase /= @mix_phase.abs
+        out_size = data.size / @decimation_size
+        out_size += 1 if @decimation_pos <= (data.size % @decimation_size)
+        out = NArray.scomplex out_size
+        out_count = 0
         data.each do |sample|
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
-          
           @mix_phase *= @mix_phase_inc
           @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
-          
           @decimation_pos -= 1
           if @decimation_pos <= 0
             @decimation_pos += @decimation_size
             f_start = @decimation_fir_size-@decimation_fir_pos
             f_end = -1-@decimation_fir_pos
-            iq = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
-            yield iq[0]
+            out[out_count] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+            out_count += 1
           end
         end
+        yield out
       end
     end
-    
+
     module ComplexFir
       include SetupFir
       def call data
-        @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
-        @decimation_fir_pos -= 1
-        @decimation_buf_c[@decimation_fir_pos] = data
-        iq = @decimation_buf_c.mul_accum @decimation_fir_coef[@decimation_fir_size-@decimation_fir_pos..-1-@decimation_fir_pos], 0
-        yield iq[0]
+        out = NArray.scomplex data.size
+        data.size.times do |i|
+          @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
+          @decimation_fir_pos -= 1
+          @decimation_buf_c[@decimation_fir_pos] = data[i..i]
+          # @decimation_buf_c[@decimation_fir_pos] = data[i]
+          f_start = @decimation_fir_size-@decimation_fir_pos
+          f_end = -1-@decimation_fir_pos
+          out[i] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+        end
+        yield out
       end
     end
     
-    module FloatEachInterpolateFir
+    module FloatInterpolateFir
       include SetupFir
       def call data
         out = NArray.float @interpolation_size, data.size
