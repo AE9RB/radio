@@ -14,7 +14,7 @@ when $rig.rate <= 48000 then $rig.spectrum 2048, 2.0
 when $rig.rate <= 96000 then $rig.spectrum 2048, 4.0
 else $rig.spectrum 2048, 8.0
 end
-@response.body = [Radio::Gif.waterfall($waterfall_gradient, [spectrum])]
+@response.body = [Radio::Gif.waterfall($waterfall_gradient, spectrum.reshape(spectrum.size,1))]
 @response.headers['Content-Type'] = 'image/gif'
 @response.headers["Cache-Control"] = 'max-age=0, private, must-revalidate'
 %>

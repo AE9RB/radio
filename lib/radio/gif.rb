@@ -20,64 +20,62 @@
 class Radio
   class Gif
   
-    # This is an optimized GIF generator for waterfalls. 
+    # This is a very fast GIF generator for waterfalls.
     # It requires 128 RGB colors, the first is unused and
     # reserved for transparency if we ever need it.
-    def self.waterfall colors, data
-
+    # data is expected to be an NArray
+    def self.waterfall colors, data, min=nil, max=nil
+      width = data[true,0].size
+      height = data[0,true].size
       gif = [
         'GIF87a', # Start Header
-        data[0].size, # width
-        data.size, # height
+        width,
+        height,
         0xF6, # 128 24-bit colors
         0x00, # background color index
         0x00 # aspect ratio
       ].pack 'a6vvCCC'
-
       gif += colors.flatten.pack 'C*'
-
       gif += [
         0x2C, # Start Image Block
         0x0000, # Left position
         0x0000, # Top position
-        data[0].size, # width
-        data.size, # height
+        width,
+        height,
         0x00, # No color table, not interlaced
         0x07 # LZW code size
       ].pack('CvvvvCC')
-
-      data.each_with_index do |vals, row|
-        col = 0
-        min = vals.min
-        range = [1e-99, vals.max - min].max
-        while col < vals.size
-          # Uncompressed GIF trickery avoids bit packing too
-          # 126 byte chunks with reset keeps LZW in 8 bit codes
-          col_end = [col+126,vals.size].min
-          slice = vals.slice(col...col_end).to_a
-          # This 126 because palette is 1..127
-          slice = slice.collect { |x| (x - min) / range * 126 + 1 }
-          slice = slice.pack 'C*'
-          newstuff = [
-            slice.size+1,
-            slice,
-            0x80 # LZW reset
-          ].pack('Ca*C')
-          gif += newstuff
-          col += 126
+      data = data.reshape(data.size)
+      min ||= data.min
+      max ||= data.max
+      range = [1e-99, max - min].max
+      data -= min # will dup
+      data.div!(range).mul!(126).add!(1)
+      # add in a frame+reset every 126 plus the 4 byte end block
+      predict = gif.size + (data.size+125) / 126 * 2 + data.size + 4
+      out = NArray.byte predict
+      out[0...gif.size] = NArray.to_na gif, NArray::BYTE, gif.size
+      i = 0
+      pos = gif.size
+      while i < data.size
+        qty = [126,data.size-i].min
+        out[pos] = qty+1
+        pos+=1
+        if qty == 1
+          out[pos] = data[i]
+        else
+          out[pos...pos+qty] = data[i...i+qty]
         end
-
+        pos+=qty
+        out[pos] = 0x80 # LZW reset
+        pos+=1
+        i += qty
       end
-
-      gif += [
-        0x01, # end image blocks
-        0x81, # final image block: LZW end
-        0x00, # end image blocks
-        0x3B # end gif
-      ].pack('C*')
-
-      return gif
-  
+      out[pos] = 0x01, # end image blocks
+      out[pos+1] = 0x81, # final image block: LZW end
+      out[pos+2] = 0x00, # end image blocks
+      out[pos+3] = 0x3B # end gif
+      out.to_s
     end
 
   end
