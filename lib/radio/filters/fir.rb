@@ -57,6 +57,8 @@ class Radio
         end
         # decimation allows fractions for digital work
         if @decimation_fir_coef
+          # reverse decimation coefs (interpolation is not reversed)
+          @decimation_fir_coef = @decimation_fir_coef[-1..0]
           @decimation_fir_size = @decimation_fir_coef.size / 2
           @decimation_buf_f = NArray.sfloat @decimation_fir_size
           @decimation_buf_c = NArray.scomplex @decimation_fir_size
@@ -105,34 +107,44 @@ class Radio
       def call data
         @mix_phase /= @mix_phase.abs
         out_size = data.size / @decimation_size
-        out_size += 1 if @decimation_pos <= (data.size % @decimation_size)
+        out_size += 1 if @decimation_pos < (data.size % @decimation_size)
         out = NArray.scomplex out_size
         out_count = 0
-        data.each do |sample|
-          @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
-          @decimation_fir_pos -= 1
-          @mix_phase *= @mix_phase_inc
-          @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
-          @decimation_pos -= 1
-          if @decimation_pos <= 0
-            @decimation_pos += @decimation_size
+        i = 0
+        while i < data.size
+          want = (@decimation_size - @decimation_pos).round
+          remaining = data.size - i
+          space = @decimation_fir_size - @decimation_fir_pos
+          actual = [want,remaining,space].min
+          new_fir_pos = @decimation_fir_pos + actual
+          @decimation_buf_c[@decimation_fir_pos...new_fir_pos] = 
+          data[i...i+actual].collect do |v|
+            v * @mix_phase *= @mix_phase_inc
+          end
+          @decimation_fir_pos = new_fir_pos
+          @decimation_fir_pos = 0 if @decimation_fir_pos == @decimation_fir_size
+          @decimation_pos += actual
+          if @decimation_pos >= @decimation_size
+            @decimation_pos -= @decimation_size
             f_start = @decimation_fir_size-@decimation_fir_pos
             f_end = -1-@decimation_fir_pos
             out[out_count] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
             out_count += 1
           end
+          i += actual
         end
         yield out
       end
     end
     
+    #TODO upgrade with latest tricks
     module FloatMixDecimateFir
       include SetupFir
       include SetupMix
       def call data
         @mix_phase /= @mix_phase.abs
         out_size = data.size / @decimation_size
-        out_size += 1 if @decimation_pos <= (data.size % @decimation_size)
+        out_size += 1 if @decimation_pos < (data.size % @decimation_size)
         out = NArray.scomplex out_size
         out_count = 0
         data.each do |sample|
@@ -161,7 +173,6 @@ class Radio
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
           @decimation_buf_c[@decimation_fir_pos] = data[i..i]
-          # @decimation_buf_c[@decimation_fir_pos] = data[i]
           f_start = @decimation_fir_size-@decimation_fir_pos
           f_end = -1-@decimation_fir_pos
           out[i] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
