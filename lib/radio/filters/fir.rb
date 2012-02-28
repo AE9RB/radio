@@ -18,6 +18,7 @@ class Radio
 
     module SetupFir
       private
+      
       def setup data
         # ensure we don't accidentally use slower ops for 1:1
         @options.delete(:interpolate) if @options[:interpolate] == 1
@@ -73,8 +74,7 @@ class Radio
             @decimation_pos = 0
           end
           @decimation_fir_size = @decimation_fir_coef.size / 2
-          @decimation_buf_f = NArray.sfloat @decimation_fir_size
-          @decimation_buf_c = NArray.scomplex @decimation_fir_size
+          @decimation_buf = NArray.scomplex @decimation_fir_size
           @decimation_fir_pos = 0
         end
         if @decimation_mix
@@ -137,7 +137,11 @@ class Radio
           space = @decimation_fir_size - @decimation_fir_pos
           actual = [want,remaining,space].min
           new_fir_pos = @decimation_fir_pos + actual
-          @decimation_buf_c[@decimation_fir_pos...new_fir_pos] = data[i...i+actual]
+          if actual == 1
+            @decimation_buf[@decimation_fir_pos] = data[i]
+          else
+            @decimation_buf[@decimation_fir_pos...new_fir_pos] = data[i...i+actual]
+          end
           @decimation_fir_pos = new_fir_pos
           @decimation_fir_pos = 0 if @decimation_fir_pos == @decimation_fir_size
           @decimation_pos += actual
@@ -145,7 +149,7 @@ class Radio
             @decimation_pos -= @decimation_size
             f_start = @decimation_fir_size-@decimation_fir_pos
             f_end = -1-@decimation_fir_pos
-            j = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+            j = @decimation_buf.mul_accum @decimation_fir_coef[f_start..f_end], 0
             out[out_count] = j * @decimation_phase *= @decimation_inc
             out_count += 1
           end
@@ -154,33 +158,12 @@ class Radio
         yield out
       end
     end
-    
-    #TODO upgrade with latest tricks
-    module FloatMixDecimateFir
-      include SetupFir
-      def call data
-        @mix_phase /= @mix_phase.abs
-        out_size = data.size / @decimation_size
-        out_size += 1 if @decimation_pos < (data.size % @decimation_size)
-        out = NArray.scomplex out_size
-        out_count = 0
-        data.each do |sample|
-          @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
-          @decimation_fir_pos -= 1
-          @mix_phase *= @mix_phase_inc
-          @decimation_buf_c[@decimation_fir_pos] = sample * @mix_phase
-          @decimation_pos -= 1
-          if @decimation_pos <= 0
-            @decimation_pos += @decimation_size
-            f_start = @decimation_fir_size-@decimation_fir_pos
-            f_end = -1-@decimation_fir_pos
-            out[out_count] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
-            out_count += 1
-          end
-        end
-        yield out
-      end
-    end
+
+    # So this is weird.  The complex version is faster than
+    # storing just the real part.  Can use the same code for
+    # both until the day this tests faster:
+    # @decimation_buf = NArray.sfloat @decimation_fir_size
+    FloatMixDecimateFir = ComplexMixDecimateFir
 
     module ComplexFir
       include SetupFir
@@ -189,10 +172,10 @@ class Radio
         data.size.times do |i|
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
-          @decimation_buf_c[@decimation_fir_pos] = data[i..i]
+          @decimation_buf[@decimation_fir_pos] = data[i..i]
           f_start = @decimation_fir_size-@decimation_fir_pos
           f_end = -1-@decimation_fir_pos
-          out[i] = @decimation_buf_c.mul_accum @decimation_fir_coef[f_start..f_end], 0
+          out[i] = @decimation_buf.mul_accum @decimation_fir_coef[f_start..f_end], 0
         end
         yield out
       end

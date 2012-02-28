@@ -33,6 +33,7 @@ class Radio
     end
 
     # The first call with data is when we decide which module is optimal.
+    # The module #call functions are highly optimized for each scenario.
     def call data, &block
       if Complex === data[0]
         mod_name = 'Complex'
