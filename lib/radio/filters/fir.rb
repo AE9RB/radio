@@ -20,20 +20,22 @@ class Radio
       
       def interpolation_mix= mix
         @interpolation_mix = mix
+        @interpolation_fir_pos = 0 # sync to mixer
         @interpolation_phase, @interpolation_inc = 
           new_mixer @interpolation_mix, @interpolation_size
         setup_interpolation if @interpolation_fir_orig
       end
 
       def interpolation_fir= coef
-        remainder = coef.size % @interpolation_size
         # expand interpolation filter for matrix by padding with 0s
+        remainder = coef.size % @interpolation_size
         if remainder > 0
           coef = coef.to_a + [0]*(@interpolation_size-remainder)
         end
         if @interpolation_fir_orig
-          raise "can't grow filter" if coef.size > @interpolation_fir_orig.size
+          raise "can't grow filter" if coef.size > @interpolation_fir_size
         else
+          @interpolation_fir_pos = 0
           @interpolation_fir_size = coef.size / @interpolation_size
           @interpolation_buf_f = NArray.sfloat @interpolation_fir_size
           @interpolation_buf_c = NArray.scomplex @interpolation_fir_size
@@ -44,6 +46,7 @@ class Radio
       
       def decimation_mix= mix
         @decimation_mix = mix
+        @decimation_fir_pos = 0 # sync to mixer
         @decimation_phase, @decimation_inc = 
           new_mixer @decimation_mix, @decimation_size
         setup_decimation if @decimation_fir_orig
@@ -51,8 +54,9 @@ class Radio
       
       def decimation_fir= coef
         if @decimation_fir_orig
-          raise "can't grow filter" if coef.size > @decimation_fir_orig.size
+          raise "can't grow filter" if coef.size > @decimation_fir_size
         else
+          @decimation_fir_pos = 0
           @decimation_fir_size = coef.size
           @decimation_buf = NArray.scomplex @decimation_fir_size
           # decimation allows fractions for digital work
@@ -97,33 +101,51 @@ class Radio
       end
       
       def setup_interpolation
-        coef = premix_filter @interpolation_fir_orig, @interpolation_mix
-        @interpolation_fir_pos = 0
-        @interpolation_fir_coef = double_filter coef
+        staging = double_filter premix_filter @interpolation_fir_orig, @interpolation_mix
         # interpolation is shaped to avoid 0*0 ops
-        ranks = @interpolation_fir_coef.size / @interpolation_size
-        coef = @interpolation_fir_coef.reshape(@interpolation_size, ranks)
-        @interpolation_fir_coef.reshape!(ranks, @interpolation_size)
-        @interpolation_size.times {|rank| @interpolation_fir_coef[true,rank] = coef[rank,true]}
+        ranks = staging.size / @interpolation_size
+        pivot = staging.reshape(@interpolation_size, ranks)
+        staging.reshape!(ranks, @interpolation_size)
+        @interpolation_size.times {|rank| staging[true,rank] = pivot[rank,true]}
+        @interpolation_fir_coef = preslice_filter staging
       end
 
       def setup_decimation
         coef = premix_filter @decimation_fir_orig, @decimation_mix
-        @decimation_fir_pos = 0
-        @decimation_fir_coef = double_filter coef
+        @decimation_fir_coef = preslice_filter double_filter coef
+      end
+      
+      # There's no obviously easy way to get NArray to
+      # mul_accum on a slice without making a temporary
+      # object.  So we make them all and store them in a
+      # regular Ruby array.
+      def preslice_filter filter
+        slices = []
+        steps = filter.shape[0] / 2
+        steps.times do |i|
+          f_start = steps-i
+          f_end = -1-i
+          if filter.rank == 2
+            slices << filter[f_start..f_end, true]
+          else
+            slices << filter[f_start..f_end]
+          end
+        end
+        slices
       end
       
       # We build filters with two copies of data so a
       # circular buffer can mul_accum on a slice.
       def double_filter coef
-        coef = coef.to_a.reverse
+        coef = coef.to_a
         if Complex === coef[0]
           new_coef = NArray.scomplex coef.size * 2
         else
           new_coef = NArray.sfloat coef.size * 2
         end
-        new_coef[0...coef.size] = coef
-        new_coef[coef.size..-1] = coef
+        # reverse into position
+        new_coef[coef.size-1..0] = coef
+        new_coef[-1..coef.size] = coef
         new_coef
       end
       
@@ -175,9 +197,7 @@ class Radio
           @decimation_pos += actual
           if @decimation_pos >= @decimation_size
             @decimation_pos -= @decimation_size
-            f_start = @decimation_fir_size-@decimation_fir_pos
-            f_end = -1-@decimation_fir_pos
-            j = @decimation_buf.mul_accum @decimation_fir_coef[f_start..f_end], 0
+            j = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
             out[out_count] = j * @decimation_phase *= @decimation_inc
             out_count += 1
           end
@@ -187,10 +207,9 @@ class Radio
       end
     end
 
-    # So this is weird.  The complex version is faster than
-    # storing just the real part.  Can use the same code for
-    # both until the day this tests faster:
-    # @decimation_buf = NArray.sfloat @decimation_fir_size
+    # Ruby magics!  Floats are converted to complex numbers as
+    # we put them in the buffer instead of every time we mul_accum.
+    # In other words, this is faster than a custom float version.
     FloatMixDecimateFir = ComplexMixDecimateFir
 
     module ComplexFir
@@ -201,9 +220,7 @@ class Radio
           @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
           @decimation_fir_pos -= 1
           @decimation_buf[@decimation_fir_pos] = data[i..i]
-          f_start = @decimation_fir_size-@decimation_fir_pos
-          f_end = -1-@decimation_fir_pos
-          out[i] = @decimation_buf.mul_accum @decimation_fir_coef[f_start..f_end], 0
+          out[i] = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
         end
         yield out
       end
@@ -218,9 +235,7 @@ class Radio
           @interpolation_buf_f[@interpolation_fir_pos] = value
           @interpolation_fir_pos += 1
           @interpolation_fir_pos = 0 if @interpolation_fir_pos == @interpolation_fir_size
-          f_start = @interpolation_fir_size-@interpolation_fir_pos
-          f_end = -1-@interpolation_fir_pos
-          iq = @interpolation_fir_coef[f_start..f_end, true].mul_accum @interpolation_buf_f, 0
+          iq = @interpolation_fir_coef[@interpolation_fir_pos].mul_accum @interpolation_buf_f, 0
           out[true,index] = iq.reshape!(iq.size).mul!(@interpolation_size)
           index += 1
         end
