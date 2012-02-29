@@ -17,98 +17,106 @@ class Radio
   class Filter
 
     module SetupFir
-      private
       
-      def setup data
-        # ensure we don't accidentally use slower ops for 1:1
-        @options.delete(:interpolate) if @options[:interpolate] == 1
-        @options.delete(:decimate) if @options[:decimate] == 1.0
-        # split array for when we interpolate and decimate in one step
-        coef = @options[:fir] # use a [1] for half
-        mix = @options[:mix] # use a zero for half
-        if @options[:interpolate] and @options[:decimate]
-          if coef
-            @interpolation_fir_coef = coef[0]
-            @decimation_fir_coef = coef[1]
-          end
-          if mix
-            @interpolation_mix = mix[0]
-            @decimation_mix = mix[1]
-          end
-        elsif @options[:interpolate]
-          @interpolation_mix = mix
-          @interpolation_fir_coef = coef
-        else # decimation (use for 1:1 too)
-          @decimation_mix = mix
-          @decimation_fir_coef = coef
+      def interpolation_mix= mix
+        @interpolation_mix = mix
+        @interpolation_phase, @interpolation_inc = 
+          new_mixer @interpolation_mix, @interpolation_size
+        setup_interpolation if @interpolation_fir_orig
+      end
+
+      def interpolation_fir= coef
+        remainder = coef.size % @interpolation_size
+        # expand interpolation filter for matrix by padding with 0s
+        if remainder > 0
+          coef = coef.to_a + [0]*(@interpolation_size-remainder)
         end
-        # expand interpolation filter for matrix by padding with 0
-        if @interpolation_fir_coef
-          @interpolation_size = @options[:interpolate].to_i
-          remainder = @interpolation_fir_coef.size % @interpolation_size
-          if remainder > 0
-            @interpolation_fir_coef = @interpolation_fir_coef.to_a 
-            @interpolation_fir_coef += [0]*(@interpolation_size-remainder)
-          end
-        end
-        # prepare coef with performance tricks
-        @interpolation_fir_coef = setup_build_coef @interpolation_fir_coef, @interpolation_mix
-        @decimation_fir_coef = setup_build_coef @decimation_fir_coef, @decimation_mix
-        # interpolation is shaped to avoid 0*0 ops
-        if @interpolation_fir_coef
-          @interpolation_fir_size = @interpolation_fir_coef.size / 2 / @interpolation_size
+        if @interpolation_fir_orig
+          raise "can't grow filter" if coef.size > @interpolation_fir_orig.size
+        else
+          @interpolation_fir_size = coef.size / @interpolation_size
           @interpolation_buf_f = NArray.sfloat @interpolation_fir_size
           @interpolation_buf_c = NArray.scomplex @interpolation_fir_size
-          @interpolation_fir_pos = 0
-          ranks = @interpolation_fir_coef.size / @interpolation_size
-          coef = @interpolation_fir_coef.reshape(@interpolation_size, ranks)
-          @interpolation_fir_coef = NArray.new(coef.typecode, ranks, @interpolation_size)
-          @interpolation_size.times {|rank| @interpolation_fir_coef[true,rank] = coef[rank,true]}
         end
-        # decimation allows fractions for digital work
-        if @decimation_fir_coef
-          @decimation_size = @options[:decimate]
+        @interpolation_fir_orig = coef
+        setup_interpolation
+      end
+      
+      def decimation_mix= mix
+        @decimation_mix = mix
+        @decimation_phase, @decimation_inc = 
+          new_mixer @decimation_mix, @decimation_size
+        setup_decimation if @decimation_fir_orig
+      end
+      
+      def decimation_fir= coef
+        if @decimation_fir_orig
+          raise "can't grow filter" if coef.size > @decimation_fir_orig.size
+        else
+          @decimation_fir_size = coef.size
+          @decimation_buf = NArray.scomplex @decimation_fir_size
+          # decimation allows fractions for digital work
           if Float === @decimation_size
             @decimation_pos = 0.0
           else
             @decimation_pos = 0
           end
-          @decimation_fir_size = @decimation_fir_coef.size / 2
-          @decimation_buf = NArray.scomplex @decimation_fir_size
-          @decimation_fir_pos = 0
         end
-        if @decimation_mix
-          @decimation_phase, @decimation_inc = 
-            setup_new_mixer @decimation_mix, @decimation_size
+        @decimation_fir_orig = coef
+        setup_decimation
+      end
+      
+      private
+      
+      def setup data
+        if @interpolation_size = @options[:interpolate]
+          @interpolation_size = @interpolation_size.to_i
         end
-        if @interpolation_mix
-          @interpolation_phase, @interpolation_inc = 
-            setup_new_mixer @interpolation_mix, @interpolation_size
+        @decimation_size = @options[:decimate]
+        if mix = @options[:mix]
+          if @interpolation_size and @decimation_size
+            self.interpolation_mix = mix[0]
+            self.decimation_mix = mix[1]
+          elsif @interpolation_size
+            self.interpolation_mix = mix
+          else
+            self.decimation_mix = mix
+          end
+        end
+        if coef = @options[:fir]
+          if @interpolation_size and @decimation_size
+            self.interpolation_fir = coef[0]
+            self.decimation_fir = coef[1]
+          elsif @interpolation_size
+            self.interpolation_fir = coef
+          else # decimation (use for 1:1 too)
+            self.decimation_fir = coef
+          end
         end
         super
       end
       
-      def setup_new_mixer mix, size
-        return [Complex(1.0,1.0)/Complex(1.0,1.0).abs,
-                Math.exp(Complex(0, PI2 * mix * size))]
+      def setup_interpolation
+        coef = premix_filter @interpolation_fir_orig, @interpolation_mix
+        @interpolation_fir_pos = 0
+        @interpolation_fir_coef = double_filter coef
+        # interpolation is shaped to avoid 0*0 ops
+        ranks = @interpolation_fir_coef.size / @interpolation_size
+        coef = @interpolation_fir_coef.reshape(@interpolation_size, ranks)
+        @interpolation_fir_coef.reshape!(ranks, @interpolation_size)
+        @interpolation_size.times {|rank| @interpolation_fir_coef[true,rank] = coef[rank,true]}
+      end
+
+      def setup_decimation
+        coef = premix_filter @decimation_fir_orig, @decimation_mix
+        @decimation_fir_pos = 0
+        @decimation_fir_coef = double_filter coef
       end
       
-      def setup_build_coef coef, mix
-        return nil unless coef
+      # We build filters with two copies of data so a
+      # circular buffer can mul_accum on a slice.
+      def double_filter coef
         coef = coef.to_a.reverse
-        if mix
-          # The signal is pre-mixed into the filter.
-          # We adjust the master phase every time we filter.
-          # mix_phase *= mix_phase_inc # faster than sin+cos
-          # Take out the rounding errors once in a while with:
-          # mix_phase /= mix_phase.abs
-          rate = PI2 * mix
-          i = -1
-          coef.collect! do |coef|
-            i += 1
-            coef * Math.exp(Complex(0,rate*i))
-          end
-        end
         if Complex === coef[0]
           new_coef = NArray.scomplex coef.size * 2
         else
@@ -117,6 +125,26 @@ class Radio
         new_coef[0...coef.size] = coef
         new_coef[coef.size..-1] = coef
         new_coef
+      end
+      
+      # The signal is pre-mixed into the filter.
+      # We adjust the master phase every time we filter.
+      # mix_phase *= mix_phase_inc # faster than sin+cos
+      # Take out the rounding errors once in a while with:
+      # mix_phase /= mix_phase.abs
+      def premix_filter coef, mix
+        return coef unless mix and mix != 0
+        rate = PI2 * mix
+        i = coef.size
+        coef.collect do |coef|
+          i -= 1
+          coef * Math.exp(Complex(0,rate*i))
+        end
+      end
+      
+      def new_mixer mix, size
+        return [Complex(1.0,1.0)/Complex(1.0,1.0).abs,
+                Math.exp(Complex(0, PI2 * mix * size))]
       end
 
     end
