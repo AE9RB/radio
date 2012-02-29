@@ -229,7 +229,7 @@ class Radio
     module FloatInterpolateFir
       include SetupFir
       def call data
-        out = NArray.float @interpolation_size, data.size
+        out = NArray.sfloat @interpolation_size, data.size
         index = 0
         data.each do |value|
           @interpolation_buf_f[@interpolation_fir_pos] = value
