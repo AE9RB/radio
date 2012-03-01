@@ -35,7 +35,7 @@ class Radio
   def self.start
     
     app = Rack::Builder.new do
-      use Rack::CommonLogger
+      # use Rack::CommonLogger
       use Rack::ShowExceptions
       use Rack::Lint
       run @radio = Radio::HTTP::Server.new

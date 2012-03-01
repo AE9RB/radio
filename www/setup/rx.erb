@@ -6,6 +6,7 @@ if post?
   when 'qi' then [1,0]
   else 0
   end
+  $rig.af = nil
   $rig.rx = Radio::Signal.new type:params['type'], id:params['id'], rate:params['rate'].to_i, input:device
   response.redirect '/'
 end 

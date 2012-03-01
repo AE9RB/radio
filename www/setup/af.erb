@@ -1,10 +1,24 @@
 <%
-if post?
-  $rig ||= Radio::Rig.new
-  $af = {type:params['type'], id:params['id'], rate:params['rate'].to_i, output:true}
+if params['doit']
+  if params['type'] == 'none'
+    $rig.af = nil
+  else
+    $rig.af = Radio::Signal.new type:params['type'], id:params['id'], rate:params['rate'].to_i, output:true
+  end
   response.redirect '/'
-end 
-unless response.redirection? -%>
+elsif params['type'] 
+%>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0; <%=h '?doit=1&' + query_string %>">
+  </head>
+  <body>
+    <p><strong>Stand by, generating coefficients and compiling filter.</strong></p>
+    (This delay won't be needed in a future version.)
+  </body>
+</html>
+<% else -%>
 <!DOCTYPE html>
 <html>
   <head>
@@ -20,8 +34,15 @@ unless response.redirection? -%>
       No input sources found.
     <% else -%>
       <dl>
+        <form action='?' method="get">
+          <dt>
+            <input type="submit" value="Select"%>
+            <input type="hidden" name="type" value="none" %>
+            No output: stop processing audio
+          </dt>
+        </form>
         <% input_sources.each do |k, opts| -%>
-          <form action='?' method="post">
+          <form action='?' method="get">
             <% input_type, input_id = k -%>
             <dt>
               <input type="submit" value="Select"%>
