@@ -69,8 +69,8 @@ class Radio
             @ssb_semaphore.synchronize do
               if @af_filter and @af
                 @bfo_filter.call(in_data) do |iq|
-                  # pcm = (iq.real + iq.imag) * 20
-                  pcm = (iq.real - iq.imag) * 30
+                  # pcm = (iq.real + iq.imag) * 30 # USB
+                  pcm = (iq.real - iq.imag) * 30 # LSB
                   @af_filter.call(pcm) do |data| 
                     @af.out data
                   end
@@ -104,6 +104,7 @@ class Radio
         fir = NArray.scomplex fir1.size
         fir[true] = fir1.to_a
         fir.imag = fir2.to_a
+        fir.conj! # LSB
         Filter.new fir:fir, decimate:decimate, mix:0
       end
       

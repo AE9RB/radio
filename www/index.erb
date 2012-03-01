@@ -26,11 +26,6 @@
         text-decoration:none; color:#fff
       }
       #waterfall{
-        height: 100px;
-        width: 940px; 
-        overflow-x: scroll;
-        overflow-y: hidden;
-        background:#000
       }
       #output{
         background:#fcfcfc;
@@ -39,6 +34,25 @@
         overflow-x: hidden;
         overflow-y: scroll;
       }
+      #marker{
+        position:absolute;
+        left:-10px;
+        top:20px;
+        z-index:5;
+        background:#13D205;
+        width:10px;
+        height:10px;
+        -moz-border-radius: 10px;
+        border-radius: 10px;
+      }
+      #wrap{
+        position:relative;
+        height: 100px;
+        width: 940px; 
+        overflow-x: scroll;
+        overflow-y: hidden;
+        background:#000
+        }
     </style>
     <script src='jquery-1.7.js'></script>
   </head>
@@ -50,7 +64,9 @@
         </a>
       </div>
 
-      <div id="waterfall">
+      <div id="wrap">
+        <div id="marker"></div>
+        <div id="waterfall"></div>
       </div>
 
       <%= render 'lo' %>
@@ -66,6 +82,14 @@
     
     
     <script type="text/javascript" charset="utf-8">
+      $("#waterfall").mousedown(function(event) {
+        console.log(event);
+        pos = event.offsetX / $("#waterfall").children()[1].width
+        $.post( 'tune', { pos: pos });
+        $("#marker")[0].style.left = '' + (event.offsetX - 5) + 'px';
+      });
+    
+    
       var waterfallSeqNo = 0;
       function nextWaterfall() {
         $('#waterfall').prepend('<img src="waterfall?' + waterfallSeqNo + '" alt="" onload="nextWaterfall()"></img>');

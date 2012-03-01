@@ -1,0 +1,5 @@
+<%
+i = params['pos'].to_f
+i -= 0.5 if $rig.iq?
+$rig.tune = -i * $rig.rate
+%>
