@@ -110,9 +110,9 @@ class Radio
         bands[2] = 3000.0 / rate
         bands[3] = 0.5
         taps = kaiser_estimate passband:0.35, stopband:0.35, transition:bands[2]-bands[1]
-        fir1 = remez numtaps: taps, type: :bandpass,
+        fir1 = firpm numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [1,50]
-        fir2 = remez numtaps: taps, type: :hilbert,
+        fir2 = firpm numtaps: taps, type: :hilbert,
           bands: bands, desired: [1,1,0,0], weights: [1,50]
         decimate = rate.to_f / 6000
         unless decimate == decimate.floor
@@ -133,14 +133,13 @@ class Radio
         bands[1] = 2800.0 / @af.rate
         bands[2] = 3200.0 / @af.rate
         taps = kaiser_estimate passband:0.1, stopband:0.1, transition:bands[2]-bands[1]
-        fir = remez numtaps: taps, type: :bandpass,
+        fir = firpm numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [10,1]
         interpolate = @af.rate.to_f / 6000
         unless interpolate == interpolate.floor
           raise "unable to filter 6000 to #{@af.rate}"
         end
-        filter = Filter.new fir:fir, interpolate:interpolate
-        filter
+        Filter.new fir:fir, interpolate:interpolate
       end
       
       

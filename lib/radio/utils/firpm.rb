@@ -23,18 +23,18 @@
 class Radio
   module Utils
     
-    def remez options
-      Remez.new options
+    def firpm options
+      FirPM.new options
     end
-    module_function :remez
+    module_function :firpm
 
-    # Instances of Remez will act as the result array.  The result
+    # Instances of FirPM will act as the result array.  The result
     # is lazily generated just-in-time for the first use.  This
-    # allows for CONSTANT=Remez.new assignments without the huge
+    # allows for CONSTANT=FirPM.new assignments without the huge
     # penalty to application startup.  To force an immediate result,
     # just ask for and retain #to_a.
 
-    class Remez
+    class FirPM
     
       # :numtaps is the size of the computed array of coefficients
       # :bands
@@ -47,13 +47,13 @@ class Radio
       end
 
       def method_missing name, *opts, &block
-        remez unless @h
+        firpm unless @h
         @h.send name, *opts, &block
       end
     
       private
     
-      def remez
+      def firpm
         numtaps = @options[:numtaps].to_i
         bands = @options[:bands].flatten.collect(&:to_f)
         des = @options[:desired].collect(&:to_f)
