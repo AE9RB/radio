@@ -60,6 +60,20 @@ class Radio
         end
       end
       
+      def set_lsb
+        @ssb_semaphore.synchronize do
+          @bfo_filter.decimation_fir = @lsb_coef
+          @mode = :lsb
+        end
+      end
+
+      def set_usb
+        @ssb_semaphore.synchronize do
+          @bfo_filter.decimation_fir = @usb_coef
+          @mode = :usb
+        end
+      end
+      
       private
       
       def af_thread
@@ -69,8 +83,11 @@ class Radio
             @ssb_semaphore.synchronize do
               if @af_filter and @af
                 @bfo_filter.call(in_data) do |iq|
-                  # pcm = (iq.real + iq.imag) * 30 # USB
-                  pcm = (iq.real - iq.imag) * 30 # LSB
+                  if @mode == :usb
+                    pcm = (iq.real + iq.imag) * 30
+                  else
+                    pcm = (iq.real - iq.imag) * 30
+                  end
                   @af_filter.call(pcm) do |data| 
                     @af.out data
                   end
@@ -101,11 +118,12 @@ class Radio
         unless decimate == decimate.floor
           raise "unable to filter #{rate} to 6000"
         end
-        fir = NArray.scomplex fir1.size
-        fir[true] = fir1.to_a
-        fir.imag = fir2.to_a
-        fir.conj! # LSB
-        Filter.new fir:fir, decimate:decimate, mix:0
+        @usb_coef = NArray.scomplex fir1.size
+        @usb_coef[true] = fir1.to_a
+        @usb_coef.imag = fir2.to_a
+        @lsb_coef = @usb_coef.conj
+        @mode = :usb
+        Filter.new fir:@usb_coef, decimate:decimate, mix:0
       end
       
       

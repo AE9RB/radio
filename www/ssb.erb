@@ -1,0 +1,21 @@
+<% if xhr?
+  p params
+  if params['ssb'] == 'lsb'
+    $rig.set_lsb
+  else
+    $rig.set_usb
+  end
+end -%>
+<form action="ssb" id="ssbForm">  
+  <input type="radio" name="ssb" value="lsb" %> LSB
+  <input type="radio" name="ssb" value="usb" %> USB
+</form>
+<script type="text/javascript">
+  $("#ssbForm input").change(function(event) {
+    event.preventDefault(); 
+    var $form = $( this ),
+        term = $form.val(),
+        url = $form.attr( 'action' );
+    $.post( url, { ssb: term });
+  });
+</script>
