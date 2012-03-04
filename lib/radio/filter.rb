@@ -21,7 +21,7 @@ class Radio
   class Filter
     
     TYPES = %w{
-      mix interpolate decimate fir agc
+      iq mix interpolate decimate fir agc
     }.collect(&:to_sym).freeze
 
     # Filters are built with mixing first and fir last.

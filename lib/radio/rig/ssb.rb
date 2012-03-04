@@ -42,11 +42,13 @@ class Radio
             @bfo_filter = bfo_mixer
             @af_filter = af_generate_filter
             @agc = Filter.new :agc => true
+            @iq = Filter.new :iq => true
           
             #TODO need a nicer pattern to force JIT compile
             @bfo_filter.call(NArray.scomplex(1)) {}
             @af_filter.call(NArray.sfloat(1)) {}
             @agc.call(NArray.sfloat(1)) {}
+            @iq.call(NArray.scomplex(1)) {}
           
             register @af_queue = Queue.new
             @af_thread = Thread.new &method(:af_thread)
@@ -64,13 +66,13 @@ class Radio
       
       def set_lsb
         @ssb_semaphore.synchronize do
-          @bfo_filter.decimation_fir = @lsb_coef
+          @bfo_filter.decimation_fir = @lsb_coef if @bfo_filter
         end
       end
 
       def set_usb
         @ssb_semaphore.synchronize do
-          @bfo_filter.decimation_fir = @usb_coef
+          @bfo_filter.decimation_fir = @usb_coef if @bfo_filter
         end
       end
       
@@ -83,9 +85,11 @@ class Radio
             @ssb_semaphore.synchronize do
               if @af_filter and @af
                 @bfo_filter.call(in_data) do |iq|
-                  @agc.call(iq.real + iq.imag) do |pcm|
-                    @af_filter.call(pcm) do |data| 
-                      @af.out data
+                  @iq.call!(iq) do |iq|
+                    @agc.call(iq.real + iq.imag) do |pcm|
+                      @af_filter.call(pcm) do |data| 
+                        @af.out data
+                      end
                     end
                   end
                 end
@@ -103,9 +107,9 @@ class Radio
         bands = []
         bands[0] = 0.0 / rate
         bands[1] = 2800.0 / rate
-        bands[2] = 3800.0 / rate
+        bands[2] = 3300.0 / rate
         bands[3] = 0.5
-        taps = kaiser_estimate passband:0.1, stopband:0.01, transition:bands[2]-bands[1]
+        taps = kaiser_estimate passband:0.5, stopband:0.05, transition:bands[2]-bands[1]
         fir1 = firpm numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [1,250]
         fir2 = firpm numtaps: taps, type: :hilbert,
@@ -125,10 +129,10 @@ class Radio
         return nil unless @af
         bands = [0,nil,nil,0.5]
         bands[1] = 2800.0 / @af.rate
-        bands[2] = 3200.0 / @af.rate
+        bands[2] = 3300.0 / @af.rate
         taps = kaiser_estimate passband:0.1, stopband:0.1, transition:bands[2]-bands[1]
         fir = firpm numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,1]
+          bands: bands, desired: [1,1,0,0], weights: [1,10]
         interpolate = @af.rate.to_f / 6000
         unless interpolate == interpolate.floor
           raise "unable to filter 6000 to #{@af.rate}"
