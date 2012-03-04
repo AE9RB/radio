@@ -15,25 +15,23 @@
 
 class Radio
 
-  PI = Math::PI.freeze
-  PI2 = (8.0 * Math.atan(1.0)).freeze
-  
   module Utils
     
-    def kaiser_estimate options
-      ripple = options[:passband].to_f * options[:stopband]
-      numer = -20.0 * Math.log10(ripple) - 13
-      denum = 14.6 * options[:transition]
-      taps = (numer/denum).round
-      type = options[:type] || :odd
-      if type == :even
-        taps +=1 if taps.odd?
-      else
-        taps +=1 if taps.even?
+    def hamming_window! array, width = nil
+      n = -1
+      width ||= array.size
+      w = width - 1
+      array.collect! do |v|
+        n += 1
+        0.54 - 0.46 * Math.cos((PI2 * n) / w)
       end
-      taps
     end
-    module_function :kaiser_estimate
+    module_function :hamming_window!
 
+    def hamming_window array, w = nil
+      hamming_window! array.dup
+    end
+    module_function :hamming_window
+          
   end
 end

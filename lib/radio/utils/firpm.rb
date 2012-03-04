@@ -24,7 +24,7 @@ class Radio
   module Utils
     
     def firpm options
-      FirPM.new options
+      FirPM.new(options).to_a
     end
     module_function :firpm
 

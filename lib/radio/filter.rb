@@ -21,18 +21,18 @@ class Radio
   class Filter
     
     TYPES = %w{
-      mix interpolate decimate fir
+      mix interpolate decimate fir agc
     }.collect(&:to_sym).freeze
 
     # Filters are built with mixing first and fir last.
     # Chain multiple filters to get other effects.
     # Make sure unused options don't test true.
-    # Filter.new(:mix => phase_inc, :decimate => int, :fir => array)
+    # Filter.new(:mix => float, :decimate => int, :fir => array)
     def initialize options
       @options = options
     end
 
-    # The first call with data is when we decide which module is optimal.
+    # The first call with data is when we decide which module to extend with.
     # The module #call functions are highly optimized for each scenario.
     def call data, &block
       if Complex === data[0]
@@ -40,17 +40,17 @@ class Radio
       elsif Float === data[0]
         mod_name = 'Float'
       else
-        raise "Unknown data type: #{first.class}"
+        raise "Unknown data type: #{data[0].class}"
       end
       TYPES.each do |type|
         mod_name += type.to_s.capitalize if @options[type]
       end
       this_call = method :call
       extend eval mod_name
+      setup data
       if this_call == method(:call)
         raise "#{mod_name} must override #call(data)"
       end
-      setup data
       call data, &block
     end
     

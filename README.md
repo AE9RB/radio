@@ -9,8 +9,8 @@ using open and approachable technologies such as HTML and Javascript.
  * HTTP Server: Working
  * Spectrum Analyzer: Working
  * Rig Control: Working
- * PSK31: LPCM only, next WIP
- * SSB: Not Started
+ * PSK31: Working, not complete
+ * SSB: Working, not complete
  * CW: Not Started
  * User Interface: experimental, please contribute
  * More drivers: always a WIP, please contribute
