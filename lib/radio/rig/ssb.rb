@@ -103,21 +103,21 @@ class Radio
       end
 
       def bfo_mixer
-        rate = self.rate
-        bands = []
-        bands[0] = 0.0 / rate
-        bands[1] = 2800.0 / rate
-        bands[2] = 3300.0 / rate
-        bands[3] = 0.5
-        taps = kaiser_estimate passband:0.5, stopband:0.05, transition:bands[2]-bands[1]
-        fir1 = firpm numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,250]
-        fir2 = firpm numtaps: taps, type: :hilbert,
-          bands: bands, desired: [1,1,0,0], weights: [1,250]
-        decimate = rate.to_f / 6000
+        rate = self.rate.to_f
+        decimate = rate / 6000
         unless decimate == decimate.floor
           raise "unable to filter #{rate} to 6000"
         end
+        bands = []
+        bands[0] = 0.0 / rate
+        bands[1] = 2400.0 / rate
+        bands[2] = 2999.0 / rate
+        bands[3] = 0.5
+        taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
+        fir1 = firpm numtaps: taps, type: :bandpass,
+          bands: bands, desired: [1,1,0,0], weights: [1,1000]
+        fir2 = firpm numtaps: taps, type: :hilbert,
+          bands: bands, desired: [1,1,0,0], weights: [1,1000]
         @usb_coef = NArray.scomplex fir1.size
         @usb_coef[true] = fir1.to_a
         @usb_coef.imag = fir2.to_a
@@ -128,11 +128,11 @@ class Radio
       def af_generate_filter
         return nil unless @af
         bands = [0,nil,nil,0.5]
-        bands[1] = 2800.0 / @af.rate
-        bands[2] = 3300.0 / @af.rate
-        taps = kaiser_estimate passband:0.1, stopband:0.1, transition:bands[2]-bands[1]
+        bands[1] = 2400.0 / @af.rate
+        bands[2] = 2999.0 / @af.rate
+        taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
         fir = firpm numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,10]
+          bands: bands, desired: [1,1,0,0], weights: [1,500]
         interpolate = @af.rate.to_f / 6000
         unless interpolate == interpolate.floor
           raise "unable to filter 6000 to #{@af.rate}"

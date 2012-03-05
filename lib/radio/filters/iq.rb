@@ -98,7 +98,7 @@ class Radio
         start = (0.10 * halfLength).round
         finish = (0.90 * halfLength).round
         (start..finish).each do |i|
-          result += (spectrum[i] - spectrum[length - 2 - i]).abs
+          result += (spectrum[i] - spectrum[length - 1 - i]).abs
         end
         result
       end

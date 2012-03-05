@@ -17,6 +17,7 @@ require 'fftw3'
 require 'thin'
 require 'libusb'
 require 'serialport'
+require 'yaml'
 
 # Suffer load order here
 %w{

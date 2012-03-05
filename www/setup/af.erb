@@ -15,7 +15,8 @@ elsif params['type']
   </head>
   <body>
     <p><strong>Stand by, generating coefficients and compiling filter.</strong></p>
-    (This delay won't be needed in a future version.)
+    This may take many minutes.<br />
+    Results are cached in: <%=h Radio::Utils::FIRPM_CACHE_FILENAME %>
   </body>
 </html>
 <% else -%>

@@ -23,7 +23,7 @@ class Radio
         if Numeric === @gain
           @gain = @gain.to_f
         else
-          @gain = 1.0
+          @gain = 20.0
         end
         @min = 0.0001
         @max = 0.0

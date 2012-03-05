@@ -22,29 +22,60 @@
 
 class Radio
   module Utils
+
+    FIRPM_CACHE_VERSION = 1
+    FIRPM_CACHE_FILENAME = File.expand_path '~/.radio_firpm_cache'
+    @@firpm_cache = {}
+    @@firpm_mtime = nil
     
     def firpm options
-      FirPM.new(options).to_a
+      out = nil
+      File.open(FIRPM_CACHE_FILENAME, File::CREAT|File::RDWR) do |f|
+        f.flock(File::LOCK_EX)
+        if f.mtime != @@firpm_mtime
+          @@firpm_cache = YAML::load(f) || {version:FIRPM_CACHE_VERSION}
+          unless @@firpm_cache and @@firpm_cache[:version] == FIRPM_CACHE_VERSION
+            @@firpm_cache = {version:FIRPM_CACHE_VERSION}
+          end
+          f.seek 0
+          @@firpm_mtime = f.mtime
+        end
+        firpm = FirPM.new(options)
+        out = @@firpm_cache[firpm.options]
+        unless out
+          out = firpm.to_a
+          @@firpm_cache[firpm.options] = out
+          f.truncate 0
+          YAML::dump @@firpm_cache, f
+        end
+      end
+      out
     end
     module_function :firpm
 
     # Instances of FirPM will act as the result array.  The result
     # is lazily generated just-in-time for the first use.  This
     # allows for CONSTANT=FirPM.new assignments without the huge
-    # penalty to application startup.  To force an immediate result,
-    # just ask for and retain #to_a.
-
+    # penalty to application startup.  It also let's us normalize
+    # the options at initialization for use as a cache key.
+    # It is strongly recommended to use the caching mixin.
     class FirPM
     
-      # :numtaps is the size of the computed array of coefficients
-      # :bands
-      # :desired
-      # :weights
       # :type may be in [:bandpass, :differentiator, :hilbert]
       # :maxiterations won't raise error when negative
       def initialize options
-        @options = options
+        # normalized and frozen to be suitable for a hash key
+        @options = {
+          type: options[:type].to_sym,
+          numtaps: options[:numtaps].to_i,
+          bands: options[:bands].flatten.collect(&:to_f).freeze,
+          desired: options[:desired].collect(&:to_f).freeze,
+          weights: options[:weights].collect(&:to_f).freeze,
+          griddensity: options[:griddensity] || 16,
+          maxiterations: options[:maxiterations] || 40
+        }.freeze
       end
+      attr_reader :options
 
       def method_missing name, *opts, &block
         firpm unless @h
@@ -54,18 +85,18 @@ class Radio
       private
     
       def firpm
-        numtaps = @options[:numtaps].to_i
-        bands = @options[:bands].flatten.collect(&:to_f)
-        des = @options[:desired].collect(&:to_f)
-        weight = @options[:weights].collect(&:to_f)
-        type = @options[:type].to_sym
-        griddensity = @options[:griddensity] || 16
-        maxiterations = @options[:maxiterations] || 40
+        numtaps = @options[:numtaps]
+        bands = @options[:bands]
+        des = @options[:desired]
+        weight = @options[:weights]
+        type = @options[:type]
+        griddensity = @options[:griddensity]
+        maxiterations = @options[:maxiterations]
 
-        raise 'bands not even size' unless bands.size.even?
-        numband = bands.size/2
-        raise 'desired.size mismatch' unless des.size == numband * 2
-        raise 'weight.size mismatch' unless weight.size == numband
+        numband = weight.size
+        unless bands.size == numband * 2 and des.size == numband * 2
+          raise 'size mismatch in bands, desired, or weights'
+        end
 
         symmetry = (type == :bandpass) ? :positive : :negative
       
@@ -238,7 +269,6 @@ class Radio
         @y = nil
         @ad = nil
         @foundExt = nil
-        @options = nil
         @h.freeze
       end
     
