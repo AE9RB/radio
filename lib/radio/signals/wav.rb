@@ -100,22 +100,29 @@ class Radio
         def next_data
           loop do
             until @file.eof?
-              type = @file.read(4)
-              size = @file.read(4).unpack("V")[0].to_i
-              case type
-              when 'fmt '
-                fmt = @file.read(size)
-                @id = fmt.slice(0,2).unpack('c')[0]
-                @channels = fmt.slice(2,2).unpack('c')[0]
-                @rate = fmt.slice(4,4).unpack('V').join.to_i
-                @byte_sec = fmt.slice(8,4).unpack('V').join.to_i
-                @block_size = fmt.slice(12,2).unpack('c')[0]
-                @bit_sample = fmt.slice(14,2).unpack('c')[0]
-                next
-              when 'data'
-                return @file.read size
+              if @data_size
+                actual = [@data_size, 4096].min
+                return @file.read actual
+                @data_size -= actual
+                @data_size = nil if @data_size == 0
               else
-                raise "Unknown GIF type: #{type}"
+                type = @file.read(4)
+                size = @file.read(4).unpack("V")[0].to_i
+                case type
+                when 'fmt '
+                  fmt = @file.read(size)
+                  @id = fmt.slice(0,2).unpack('c')[0]
+                  @channels = fmt.slice(2,2).unpack('c')[0]
+                  @rate = fmt.slice(4,4).unpack('V').join.to_i
+                  @byte_sec = fmt.slice(8,4).unpack('V').join.to_i
+                  @block_size = fmt.slice(12,2).unpack('c')[0]
+                  @bit_sample = fmt.slice(14,2).unpack('c')[0]
+                  next
+                when 'data'
+                  @data_size = size
+                else
+                  raise "Unknown type: #{type}"
+                end
               end
             end
             @file.rewind

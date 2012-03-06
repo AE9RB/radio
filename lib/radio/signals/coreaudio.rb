@@ -18,7 +18,7 @@ class Radio
 
     class CoreAudio
       
-      JITTER = 0.15 #seconds of window for output timing jitter
+      JITTER = 0.2 #seconds of window for output timing jitter
       BUFFER = 0.5 #seconds of input buffer
 
       begin

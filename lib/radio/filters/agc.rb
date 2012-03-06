@@ -27,7 +27,7 @@ class Radio
         end
         @min = 0.0001
         @max = 0.0
-        @attack = 0.1
+        @attack = 0.05
         @decay = 0.01
         @reference = 0.05
         super
