@@ -16,9 +16,9 @@
 class Radio
   class Filter
 
-    module FloatAgc
+    module Agc
       
-      def setup data
+      def setup
         @gain = @options[:agc]
         if Numeric === @gain
           @gain = @gain.to_f
@@ -33,28 +33,30 @@ class Radio
         super
       end
       
-      def call data
-        yield(data.collect do |v|
-          out = @gain * v
-          abs_delta = out.abs - @reference
-          if abs_delta.abs > @gain
-            rate = @attack
-            out = -1.0 if out < -1.0
-            out = 1.0 if out > 1.0
-          else
-            rate = @decay
-            if out < -1.0
-              out = -1.0
-              rate *= 3
+      module Float
+        def call data
+          yield(data.collect do |v|
+            out = @gain * v
+            abs_delta = out.abs - @reference
+            if abs_delta.abs > @gain
+              rate = @attack
+              out = -1.0 if out < -1.0
+              out = 1.0 if out > 1.0
+            else
+              rate = @decay
+              if out < -1.0
+                out = -1.0
+                rate *= 3
+              end
+              if out > 1.0
+                out = 1.0
+                rate *= 3
+              end
             end
-            if out > 1.0
-              out = 1.0
-              rate *= 3
-            end
-          end
-          @gain -= abs_delta * rate
-          out
-        end)
+            @gain -= abs_delta * rate
+            out
+          end)
+        end
       end
       
     end

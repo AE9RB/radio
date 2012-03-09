@@ -17,47 +17,50 @@ class Radio
   
   # This generic Filter class will optimize by replacing its #call
   # with an optimized version from a module.  The type of data
-  # and initializer options determine the module name to load.
+  # and initializer options determine the module to load.
   class Filter
     
     TYPES = %w{
       iq mix interpolate decimate fir agc
     }.collect(&:to_sym).freeze
 
-    # Filters are built with mixing first and fir last.
-    # Chain multiple filters to get other effects.
-    # Make sure unused options don't test true.
-    # Filter.new(:mix => float, :decimate => int, :fir => array)
     def initialize options
       @options = options
+      @mod_name = ''
+      TYPES.each do |type|
+        @mod_name += type.to_s.capitalize if @options[type]
+      end
+      extend eval @mod_name
+      setup
     end
 
-    # The first call with data is when we decide which module to extend with.
-    # The module #call functions are highly optimized for each scenario.
     def call data, &block
-      if Complex === data[0]
-        mod_name = 'Complex'
-      elsif Float === data[0]
-        mod_name = 'Float'
-      else
-        raise "Unknown data type: #{data[0].class}"
-      end
-      TYPES.each do |type|
-        mod_name += type.to_s.capitalize if @options[type]
-      end
-      this_call = method :call
-      extend eval mod_name
-      setup data
-      if this_call == method(:call)
-        raise "#{mod_name} must override #call(data)"
-      end
+      extend_by_data_type data
       call data, &block
     end
+
+    def call! data, &block
+      extend_by_data_type data
+      call! data, &block
+    end
     
-    # implement in modules, if you desire.
-    # have everything call super, this will catch.
-    def setup data
+    def setup
       # noop
+    end
+    
+    private
+    
+    # If the base module didn't include a #call then it has
+    # defined specialized calls for each data type.  We don't
+    # know the actual data type until the first data arrives.
+    def extend_by_data_type data
+      mod_type = @mod_name + '::' + data[0].class.to_s
+      if @fully_extended
+        raise "#{mod_type} not providing #call or #call! method."
+      end
+      this_call = method :call
+      extend eval mod_type
+      @fully_extended = true
     end
     
   end

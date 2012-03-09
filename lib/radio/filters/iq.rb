@@ -16,9 +16,9 @@
 class Radio
   class Filter
 
-    module ComplexIq
+    module Iq
       
-      def setup data
+      def setup
         @bins = 512
         @tries = 5
         @dc_rate = 0.00001
@@ -31,16 +31,18 @@ class Radio
         @fft_pos = 0
       end
       
-      def call data, &block
-        call! data.dup, &block
-      end
+      module Complex
+        def call data, &block
+          call! data.dup, &block
+        end
 
-      def call! data
-        remove_dc_bias! data
-        collect data
-        adjust! data, @phase, @gain
-        yield data
-        analyze # this is slow
+        def call! data
+          remove_dc_bias! data
+          collect data
+          adjust! data, @phase, @gain
+          yield data
+          analyze # this is slow
+        end
       end
       
       # This maintains a buffer of recent data

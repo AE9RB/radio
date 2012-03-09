@@ -72,7 +72,7 @@ class Radio
       
       private
       
-      def setup data
+      def setup
         if @interpolation_size = @options[:interpolate]
           @interpolation_size = @interpolation_size.to_i
         end
@@ -172,7 +172,7 @@ class Radio
     end
 
 
-    module ComplexMixDecimateFir
+    module MixDecimateFir
       include SetupFir
       def call data
         @decimation_phase /= @decimation_phase.abs
@@ -203,39 +203,38 @@ class Radio
       end
     end
 
-    # Ruby magics!  Floats are converted to complex numbers as
-    # we put them in the buffer instead of every time we mul_accum.
-    # In other words, this is faster than a custom float version.
-    FloatMixDecimateFir = ComplexMixDecimateFir
-
-    module ComplexFir
+    module Fir
       include SetupFir
-      def call data
-        out = NArray.scomplex data.size
-        data.size.times do |i|
-          @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
-          @decimation_fir_pos -= 1
-          @decimation_buf[@decimation_fir_pos] = data[i..i]
-          out[i] = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
+      module Complex
+        def call data
+          out = NArray.scomplex data.size
+          data.size.times do |i|
+            @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
+            @decimation_fir_pos -= 1
+            @decimation_buf[@decimation_fir_pos] = data[i..i]
+            out[i] = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
+          end
+          yield out
         end
-        yield out
       end
     end
     
-    module FloatInterpolateFir
+    module InterpolateFir
       include SetupFir
-      def call data
-        out = NArray.sfloat @interpolation_size, data.size
-        index = 0
-        data.each do |value|
-          @interpolation_buf_f[@interpolation_fir_pos] = value
-          @interpolation_fir_pos += 1
-          @interpolation_fir_pos = 0 if @interpolation_fir_pos == @interpolation_fir_size
-          iq = @interpolation_fir_coef[@interpolation_fir_pos].mul_accum @interpolation_buf_f, 0
-          out[true,index] = iq.reshape!(iq.size).mul!(@interpolation_size)
-          index += 1
+      module Float
+        def call data
+          out = NArray.sfloat @interpolation_size, data.size
+          index = 0
+          data.each do |value|
+            @interpolation_buf_f[@interpolation_fir_pos] = value
+            @interpolation_fir_pos += 1
+            @interpolation_fir_pos = 0 if @interpolation_fir_pos == @interpolation_fir_size
+            iq = @interpolation_fir_coef[@interpolation_fir_pos].mul_accum @interpolation_buf_f, 0
+            out[true,index] = iq.reshape!(iq.size).mul!(@interpolation_size)
+            index += 1
+          end
+          yield out.reshape!(out.size)
         end
-        yield out.reshape!(out.size)
       end
     end
     
