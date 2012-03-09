@@ -177,7 +177,7 @@ class Radio
       def call data
         @decimation_phase /= @decimation_phase.abs
         out_size = data.size / @decimation_size
-        out_size += 1 if @decimation_pos < (data.size % @decimation_size)
+        out_size += 1 if @decimation_size - @decimation_pos <= data.size % @decimation_size
         out = NArray.scomplex out_size
         out_count = 0
         i = 0
@@ -187,11 +187,7 @@ class Radio
           space = @decimation_fir_size - @decimation_fir_pos
           actual = [want,remaining,space].min
           new_fir_pos = @decimation_fir_pos + actual
-          if actual == 1
-            @decimation_buf[@decimation_fir_pos] = data[i]
-          else
-            @decimation_buf[@decimation_fir_pos...new_fir_pos] = data[i...i+actual]
-          end
+          @decimation_buf[@decimation_fir_pos...new_fir_pos] = data[i...i+actual]
           @decimation_fir_pos = new_fir_pos
           @decimation_fir_pos = 0 if @decimation_fir_pos == @decimation_fir_size
           @decimation_pos += actual
@@ -203,7 +199,7 @@ class Radio
           end
           i += actual
         end
-        yield out
+        yield out unless out.empty?
       end
     end
 

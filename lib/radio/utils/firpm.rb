@@ -33,7 +33,7 @@ class Radio
       File.open(FIRPM_CACHE_FILENAME, File::CREAT|File::RDWR) do |f|
         f.flock(File::LOCK_EX)
         if f.mtime != @@firpm_mtime
-          @@firpm_cache = YAML::load(f) || {version:FIRPM_CACHE_VERSION}
+          @@firpm_cache = YAML::load(f)
           unless @@firpm_cache and @@firpm_cache[:version] == FIRPM_CACHE_VERSION
             @@firpm_cache = {version:FIRPM_CACHE_VERSION}
           end

@@ -85,6 +85,7 @@ class Radio
             raise "Unsupported sample size: #{@bit_sample}" 
           end
           return out if input_channels == 1 and @channels == 1
+          #TODO buggy wav files with bad endings raise the next line
           out.reshape! @channels, out.size/@channels
           if input_channels == 1
             out[@channel_i,true]
@@ -96,7 +97,6 @@ class Radio
           end
         end
         
-        #TODO read data in chunks smaller than size (which is often the whole file)
         def next_data
           loop do
             until @file.eof?

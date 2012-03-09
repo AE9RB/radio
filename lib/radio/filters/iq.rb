@@ -16,15 +16,11 @@
 class Radio
   class Filter
 
-    # this is the IQ detection idea from the sdr# project
-    #TODO need a new ruby fftw3 interface for performance
     module ComplexIq
       
       def setup data
-        @bins = 1024
-        @every = 3
-        @count = 0
-        @guesses = 10
+        @bins = 512
+        @tries = 5
         @dc_rate = 0.00001
         @iq_rate = 0.0001
         @biasI = 0.0
@@ -41,10 +37,57 @@ class Radio
 
       def call! data
         remove_dc_bias! data
-        estimate! data
+        collect data
         adjust! data, @phase, @gain
         yield data
+        analyze # this is slow
       end
+      
+      # This maintains a buffer of recent data
+      # that we can grab for analysis
+      def collect data
+        i = 0
+        data_size = data.size
+        while i < data_size
+          remaining = data_size - i
+          space = @bins - @fft_pos
+          actual = [remaining,space].min
+          new_fft_pos = @fft_pos + actual
+          @fft[@fft_pos...new_fft_pos] = data[i...i+actual]
+          @fft_pos = new_fft_pos
+          if @fft_pos == @bins
+            @fft_pos = 0
+            @next_fft = @fft.dup
+          end
+          i += actual
+        end
+      end
+      
+      # Once per call, we will do an FFT to either start a
+      # new round of guessing or try again on the current set.
+      def analyze
+        return unless @cur_fft or @next_fft
+        if !@cur_fft_count or @cur_fft_count > @tries
+          @cur_fft = @next_fft
+          @cur_fft_count = 0
+          fft = @cur_fft.dup
+          adjust! fft, @phase, @gain
+          @cur_fft_best = detect_energies FFTW3::fft(fft)
+        else
+          @cur_fft_count += 1
+          phaseIncrement = @iq_rate * rand_direction
+          gainIncrement = @iq_rate * rand_direction
+          fft = @cur_fft.dup
+          adjust! fft, @phase + phaseIncrement, @gain + gainIncrement
+          det = detect_energies FFTW3::fft(fft)
+          if det > @cur_fft_best
+            @cur_fft_best = det
+            @gain += gainIncrement
+            @phase += phaseIncrement
+          end
+        end
+      end
+      
       
       def remove_dc_bias! data
         data.collect! do |v|
@@ -64,34 +107,7 @@ class Radio
         end
       end
       
-      #TODO DRY this with FIR hihi
-      def estimate! data
-        i = 0
-        data_size = data.size
-        while i < data_size
-          remaining = data_size - i
-          space = @bins - @fft_pos
-          actual = [remaining,space].min
-          new_fft_pos = @fft_pos + actual
-          if actual == 1
-            @fft[@fft_pos] = data[i]
-          else
-            @fft[@fft_pos...new_fft_pos] = data[i...i+actual]
-          end
-          @fft_pos = new_fft_pos
-          if @fft_pos == @bins
-            @fft_pos = 0
-            @count += 1
-            if @count == @every
-              @count = 0
-              est_pt2
-            end
-          end
-          i += actual
-        end
-      end
-      
-      def utility spectrum
+      def detect_energies spectrum
         result = 0.0
         length = @bins.size
         halfLength = length / 2
@@ -112,26 +128,9 @@ class Radio
         result
       end
       
+      # this is the IQ detection idea from the sdr# project
       def rand_direction
         rand*2-1
-      end
-      
-      def est_pt2
-        fft = @fft.dup
-        adjust! fft, @phase, @gain
-        util = utility FFTW3::fft(fft)
-        @guesses.times do
-          phaseIncrement = @iq_rate * rand_direction
-          gainIncrement = @iq_rate * rand_direction
-          fft = @fft.dup
-          adjust! fft, @phase + phaseIncrement, @gain + gainIncrement
-          u = utility FFTW3::fft(fft)
-          if u > util
-            util = u
-            @gain += gainIncrement
-            @phase += phaseIncrement
-          end
-        end
       end
       
     end
