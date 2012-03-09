@@ -18,13 +18,13 @@ class Radio
 
     class CoreAudio
       
-      JITTER = 0.2 #seconds of window for output timing jitter
-      BUFFER = 0.5 #seconds of input buffer
+      BUFFER = 0.3 #seconds of input buffer
+      JITTER = 0.8 #percent of buffer for output adjust
 
       begin
         # Older versions have a one-off bug in audio output
         # which will cause spurious emissions if used to transmit.
-        gem 'coreaudio', '>= 0.0.8'
+        gem 'coreaudio', '>= 0.0.9'
         require 'coreaudio'
       rescue LoadError => e
         @bad_coreaudio = gem 'coreaudio'
@@ -71,7 +71,7 @@ class Radio
         end
         if @output = options[:output]
           @output_channels = @output.size
-          buffer_size = @output_channels * rate * JITTER * 2
+          buffer_size = @output_channels * rate * BUFFER
           @output_buf = @device.output_buffer buffer_size
           @output_buf.start
         end
@@ -96,7 +96,15 @@ class Radio
         if @output_buf.dropped_frame > 0
           p 'sleeping because frame dropped' #TODO logger
           resetting = true
-          sleep JITTER
+          sleep JITTER * BUFFER
+        end
+        output_buf_space = @output_buf.space
+        if output_buf_space < data.size
+          p 'dropping some data' #TODO logger
+          # we'll drop all the data that won't fit
+          @drop_data = data.size - output_buf_space
+          # plus enough data to swing back to 20%
+          @drop_data += rate * BUFFER * JITTER
         end
         out = nil
         if @drop_data
@@ -108,16 +116,7 @@ class Radio
         else
           out = data * 32767
         end
-        if out
-          # CoreAudio gem will block when the buffer is full
-          # We'll discard a jitter worth of data when this happens
-          jit = Time.now + 0.01
-          @output_buf << out
-          if Time.now > jit
-            p 'dropping some data' #TODO logger
-            @drop_data = rate * JITTER
-          end
-        end
+        @output_buf << out if out
         @output_buf.reset_dropped_frame if resetting
       end
   
