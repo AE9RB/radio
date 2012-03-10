@@ -46,11 +46,11 @@ class Radio
               rate = @decay
               if out < -1.0
                 out = -1.0
-                rate *= 3
+                rate *= 10
               end
               if out > 1.0
                 out = 1.0
-                rate *= 3
+                rate *= 10
               end
             end
             @gain -= abs_delta * rate

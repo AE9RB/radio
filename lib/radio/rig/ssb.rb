@@ -43,6 +43,7 @@ class Radio
             @af_filter = af_generate_filter
             @agc = Filter.new :agc => true
             @iq = Filter.new :iq => true
+            @mix = mixmix
           
             #TODO need a nicer pattern to force JIT compile
             @bfo_filter.call(NArray.scomplex(1)) {}
@@ -59,24 +60,44 @@ class Radio
       
       def tune= freq
         @ssb_semaphore.synchronize do
-          return unless @af
-          @bfo_filter.decimation_mix = freq / rate
+          @freq = freq
+          set_mixers
         end
       end
       
       def set_lsb
         @ssb_semaphore.synchronize do
-          @bfo_filter.decimation_fir = @lsb_coef if @bfo_filter
+          if @bfo_filter
+            @ssb_mode = :lsb
+            @bfo_filter.decimation_fir = @lsb_coef 
+            set_mixers
+          end
         end
       end
 
       def set_usb
         @ssb_semaphore.synchronize do
-          @bfo_filter.decimation_fir = @usb_coef if @bfo_filter
+          if @bfo_filter
+            @ssb_mode = :usb
+            @bfo_filter.decimation_fir = @usb_coef
+            set_mixers
+          end
         end
       end
       
       private
+      
+      def set_mixers
+        return unless @af and @bfo_filter
+        freq = @freq.to_f 
+        if @ssb_mode == :usb
+          @bfo_filter.decimation_mix = (freq-1300) / rate
+          @mix.mix = +1300.0 / 6000
+        else
+          @bfo_filter.decimation_mix = (freq+1300) / rate
+          @mix.mix = -1300.0 / 6000
+        end
+      end
       
       def af_thread
         begin
@@ -85,12 +106,16 @@ class Radio
             @ssb_semaphore.synchronize do
               if @af_filter and @af
                 @bfo_filter.call(in_data) do |iq|
+                  
+                  @mix.call!(iq) do |iq|
                   @iq.call!(iq) do |iq|
+                  
                     @agc.call(iq.real + iq.imag) do |pcm|
                       @af_filter.call(pcm) do |data| 
                         @af.out data
                       end
                     end
+                  end
                   end
                 end
               end
@@ -101,6 +126,19 @@ class Radio
           raise e
         end
       end
+      
+      def mixmix
+        rate = 6000
+        bands = []
+        bands[0] = 0.0 / rate
+        bands[1] = 2400.0 / rate
+        bands[2] = 2600.0 / rate
+        bands[3] = 0.5
+        taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
+        fir = firpm numtaps: taps, type: :bandpass,
+          bands: bands, desired: [1,1,0,0], weights: [1,1000]
+        Filter.new :mix => (1300.0 / rate), :fir => fir
+      end
 
       def bfo_mixer
         rate = self.rate.to_f
@@ -110,10 +148,10 @@ class Radio
         end
         bands = []
         bands[0] = 0.0 / rate
-        bands[1] = 2400.0 / rate
-        bands[2] = 2999.0 / rate
+        bands[1] = 1100.0 / rate
+        bands[2] = 1500.0 / rate
         bands[3] = 0.5
-        taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
+        taps = kaiser_estimate passband:0.1, stopband:0.1, transition:bands[2]-bands[1]
         fir1 = firpm numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [1,1000]
         fir2 = firpm numtaps: taps, type: :hilbert,
@@ -122,6 +160,7 @@ class Radio
         @usb_coef[true] = fir1.to_a
         @usb_coef.imag = fir2.to_a
         @lsb_coef = @usb_coef.conj
+        @ssb_mode = :usb
         Filter.new fir:@usb_coef, decimate:decimate, mix:0
       end
       
@@ -129,10 +168,11 @@ class Radio
         return nil unless @af
         bands = [0,nil,nil,0.5]
         bands[1] = 2400.0 / @af.rate
-        bands[2] = 2999.0 / @af.rate
+        bands[2] = 3000.0 / @af.rate
         taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
+        p taps
         fir = firpm numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,500]
+          bands: bands, desired: [1,1,0,0], weights: [1,1000]
         interpolate = @af.rate.to_f / 6000
         unless interpolate == interpolate.floor
           raise "unable to filter 6000 to #{@af.rate}"

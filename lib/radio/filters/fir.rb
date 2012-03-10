@@ -162,14 +162,14 @@ class Radio
         i = coef.size
         coef.collect do |coef|
           i -= 1
-          coef * Math.exp(Complex(0,rate*i))
+          coef * Math.exp(Complex(0.0,rate*i))
         end
       end
       
       def new_mixer mix, size
         size ||= 1
         return [Complex(1.0,1.0)/Complex(1.0,1.0).abs,
-                Math.exp(Complex(0, PI2 * mix * size))]
+                Math.exp(Complex(0.0, PI2 * mix * size))]
       end
 
     end

@@ -18,13 +18,12 @@ class Radio
 
     class CoreAudio
       
-      BUFFER = 0.3 #seconds of input buffer
-      JITTER = 0.8 #percent of buffer for output adjust
+      VERSION = '>= 0.0.9'
+      BUFFER = 0.3 #seconds of buffer
+      JITTER = 0.7 #percent of buffer for output adjust
 
       begin
-        # Older versions have a one-off bug in audio output
-        # which will cause spurious emissions if used to transmit.
-        gem 'coreaudio', '>= 0.0.9'
+        gem 'coreaudio', VERSION
         require 'coreaudio'
       rescue LoadError => e
         @bad_coreaudio = gem 'coreaudio'
@@ -38,7 +37,7 @@ class Radio
           @is_darwin = (`uname`.strip == 'Darwin') rescue false
         end
         return 'Unsupported: requires Apple OS' unless @is_darwin
-        return 'Unavailable: gem update coreaudio ">= 0.0.8"' if @bad_coreaudio
+        return 'Unavailable: gem update coreaudio '+ VERSION.dump if @bad_coreaudio
         return 'Unavailable: gem install coreaudio'
       end
   
@@ -94,16 +93,17 @@ class Radio
       def out data
         resetting = false
         if @output_buf.dropped_frame > 0
-          p 'sleeping because frame dropped' #TODO logger
+          p 'filling because frame dropped' #TODO logger
           resetting = true
-          sleep JITTER * BUFFER
+          filler = rate * BUFFER * JITTER - data.size
+          @output_buf << NArray.sfloat(filler) if filler > 0
         end
         output_buf_space = @output_buf.space
         if output_buf_space < data.size
           p 'dropping some data' #TODO logger
           # we'll drop all the data that won't fit
           @drop_data = data.size - output_buf_space
-          # plus enough data to swing back to 20%
+          # plus enough data to swing back
           @drop_data += rate * BUFFER * JITTER
         end
         out = nil

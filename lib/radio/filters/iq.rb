@@ -113,13 +113,13 @@ class Radio
         result = 0.0
         length = @bins.size
         halfLength = length / 2
-        start = (0.10 * halfLength).round
-        finish = (0.70 * halfLength).round
+        start = (0.20 * halfLength).round
+        finish = (0.90 * halfLength).round
         spectrum = spectrum.abs
         frag = spectrum[start..finish]
         min = frag.min
         max = frag.max
-        threshold = max - (max-min) * 0.7
+        threshold = max - (max-min) * 0.5
         (start..finish).each do |i|
           cur = spectrum[length - 1 - i]
           next unless cur > threshold
