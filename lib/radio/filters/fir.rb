@@ -51,7 +51,8 @@ class Radio
           new_mixer @decimation_mix, @decimation_size
         setup_decimation if @decimation_fir_orig
       end
-      
+      alias :mix= :decimation_mix=
+
       def decimation_fir= coef
         if @decimation_fir_orig
           raise "can't grow filter" if coef.size > @decimation_fir_size
@@ -69,6 +70,7 @@ class Radio
         @decimation_fir_orig = coef
         setup_decimation
       end
+      alias :fir= :decimation_fir=
       
       private
       
@@ -165,25 +167,74 @@ class Radio
       end
       
       def new_mixer mix, size
+        size ||= 1
         return [Complex(1.0,1.0)/Complex(1.0,1.0).abs,
                 Math.exp(Complex(0, PI2 * mix * size))]
       end
 
     end
 
+    module Fir
+      include SetupFir
+      module Complex
+        def call data
+          out = NArray.scomplex data.size
+          data.size.times do |i|
+            @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
+            @decimation_fir_pos -= 1
+            @decimation_buf[@decimation_fir_pos] = data[i..i]
+            out[i] = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
+          end
+          yield out
+        end
+      end
+    end
+    
+    module Mix
+      include SetupFir
+      def call data, &block
+        call! data.dup, &block
+      end
+      def call! data
+        @decimation_phase /= @decimation_phase.abs
+        yield(data.collect! do |v|
+          v * @decimation_phase *= @decimation_inc
+        end)
+      end
+    end
+
+    module MixFir
+      include SetupFir
+      def call data, &block
+        call! data.dup, &block
+      end
+      def call! data
+        @decimation_phase /= @decimation_phase.abs
+        data.collect! do |value|
+          @decimation_buf[@decimation_fir_pos] = value
+          @decimation_fir_pos += 1
+          @decimation_fir_pos = 0 if @decimation_fir_pos == @decimation_fir_size
+          @decimation_phase *= @decimation_inc
+          value = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
+          value[0] * @decimation_phase
+        end
+        yield data
+      end
+    end
 
     module MixDecimateFir
       include SetupFir
       def call data
+        data_size = data.size
         @decimation_phase /= @decimation_phase.abs
-        out_size = data.size / @decimation_size
-        out_size += 1 if @decimation_size - @decimation_pos <= data.size % @decimation_size
+        out_size = data_size / @decimation_size
+        out_size += 1 if @decimation_size - @decimation_pos <= data_size % @decimation_size
         out = NArray.scomplex out_size
         out_count = 0
         i = 0
-        while i < data.size
+        while i < data_size
           want = (@decimation_size - @decimation_pos).round
-          remaining = data.size - i
+          remaining = data_size - i
           space = @decimation_fir_size - @decimation_fir_pos
           actual = [want,remaining,space].min
           new_fir_pos = @decimation_fir_pos + actual
@@ -203,22 +254,6 @@ class Radio
       end
     end
 
-    module Fir
-      include SetupFir
-      module Complex
-        def call data
-          out = NArray.scomplex data.size
-          data.size.times do |i|
-            @decimation_fir_pos = @decimation_fir_size if @decimation_fir_pos == 0
-            @decimation_fir_pos -= 1
-            @decimation_buf[@decimation_fir_pos] = data[i..i]
-            out[i] = @decimation_fir_coef[@decimation_fir_pos].mul_accum @decimation_buf, 0
-          end
-          yield out
-        end
-      end
-    end
-    
     module InterpolateFir
       include SetupFir
       module Float
@@ -235,6 +270,25 @@ class Radio
           end
           yield out.reshape!(out.size)
         end
+      end
+    end
+
+    module MixInterpolateFir
+      include SetupFir
+      def call data
+        @interpolation_phase /= @interpolation_phase.abs
+        out = NArray.scomplex @interpolation_size, data.size
+        index = 0
+        data.each do |value|
+          @interpolation_buf_c[@interpolation_fir_pos] = value
+          @interpolation_fir_pos += 1
+          @interpolation_fir_pos = 0 if @interpolation_fir_pos == @interpolation_fir_size
+          iq = @interpolation_fir_coef[@interpolation_fir_pos].mul_accum @interpolation_buf_c, 0
+          @interpolation_phase *= @interpolation_inc
+          out[true,index] = iq.reshape!(iq.size).mul!(@interpolation_phase * @interpolation_size)
+          index += 1
+        end
+        yield out.reshape!(out.size)
       end
     end
     
