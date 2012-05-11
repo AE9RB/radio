@@ -9,9 +9,10 @@ using open and approachable technologies such as HTML and Javascript.
  * HTTP Server: Working
  * Spectrum Analyzer: Working
  * Rig Control: Working
- * PSK31: Working, not complete
- * SSB: Working, not complete
- * CW: Not Started
+ * SSB: Working
+ * PSK31: Working, no UI
+ * CW: AF mode started
+ * Transmit: not yet
  * User Interface: experimental, please contribute
  * More drivers: always a WIP, please contribute
 

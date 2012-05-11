@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
   dirs = %w(bin lib www)
   s.files        = Dir.glob("{#{dirs.join ','}}/**/*")
   s.files       += %w(README.md LICENSE)
-  s.test_files    = Dir.glob('test/**/*')
+  # s.test_files    = Dir.glob('test/**/*')
   s.require_path = 'lib'
   s.executables  = ['radio-server']
 end

@@ -148,14 +148,17 @@ class Radio
         end
         bands = []
         bands[0] = 0.0 / rate
-        bands[1] = 1100.0 / rate
+        bands[1] = 1200.0 / rate
         bands[2] = 1500.0 / rate
         bands[3] = 0.5
         taps = kaiser_estimate passband:0.1, stopband:0.1, transition:bands[2]-bands[1]
+        p taps
+        taps = 271
+        p taps
         fir1 = firpm numtaps: taps, type: :bandpass,
-          bands: bands, desired: [1,1,0,0], weights: [1,1000]
+          bands: bands, desired: [1,1,0,0], weights: [1,10000]
         fir2 = firpm numtaps: taps, type: :hilbert,
-          bands: bands, desired: [1,1,0,0], weights: [1,1000]
+          bands: bands, desired: [1,1,0,0], weights: [1,10000]
         @usb_coef = NArray.scomplex fir1.size
         @usb_coef[true] = fir1.to_a
         @usb_coef.imag = fir2.to_a
@@ -170,7 +173,6 @@ class Radio
         bands[1] = 2400.0 / @af.rate
         bands[2] = 3000.0 / @af.rate
         taps = kaiser_estimate passband:0.01, stopband:0.01, transition:bands[2]-bands[1]
-        p taps
         fir = firpm numtaps: taps, type: :bandpass,
           bands: bands, desired: [1,1,0,0], weights: [1,1000]
         interpolate = @af.rate.to_f / 6000

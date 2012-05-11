@@ -20,7 +20,7 @@ class Radio
       
       VERSION = '>= 0.0.9'
       BUFFER = 0.3 #seconds of buffer
-      JITTER = 0.7 #percent of buffer for output adjust
+      JITTER = 0.6 #percent of buffer for output adjust
 
       begin
         gem 'coreaudio', VERSION
