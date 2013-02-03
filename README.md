@@ -22,9 +22,9 @@ Please use the wiki for verbose install directions: https://github.com/ham21/rad
 
 ### Dependencies
 
-Ubuntu and Debian:
+Debian and Ubuntu:
 
-    sudo apt-get install alsa-base libusb-1.0 build-essential libfftw3-dev libz-dev libssl-dev libreadline-dev
+    sudo apt-get install ruby-dev alsa-base libusb-1.0 build-essential libfftw3-dev libz-dev libssl-dev libreadline-dev
     sudo usermod -a -G audio your_username
     
 Apple OSX using ports:
@@ -39,13 +39,7 @@ Windows needs fftw3 installed but the install process is not yet known.
     
 ### Ruby
 
-This project requires Ruby 1.9. If your OS came with Ruby, it's likely 1.8
-and not suitable. Your choice to install Ruby 1.9 directly or with the rvm
-tool. Rubinius should work in 1.9 mode but JRuby will not.
-
-http://www.ruby-lang.org/
-or
-http://beginrescueend.com/rvm/install/
+This project requires Ruby 1.9. Ruby 1.8 is not fast enough and JRuby will not work.
 
 ### Ruby Gems
 
@@ -53,7 +47,7 @@ Install the radio software and operating system specifics for Ruby.
 
 Linux:
 
-    gem install radio alsa
+    gem install radio ruby-alsa
 
 Apple OSX:
 
