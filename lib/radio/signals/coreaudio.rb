@@ -26,7 +26,10 @@ class Radio
         gem 'coreaudio', VERSION
         require 'coreaudio'
       rescue LoadError => e
-        @bad_coreaudio = gem 'coreaudio'
+        begin
+          @bad_coreaudio = gem 'coreaudio'
+        rescue LoadError => e
+        end
       end
       
       def self.status
