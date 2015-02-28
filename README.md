@@ -1,3 +1,6 @@
+This project is no longer maintained. It was an interesting experiment but
+development costs were too high and CW would never be a first-class mode.
+
 # Twenty-First Century Amateur Radio
 
 An http server for interactive digital signal processing.
